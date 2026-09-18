@@ -283,6 +283,7 @@ function AlertSection() {
   const preferences = useSetupStore(s => s.preferences)
   const chooseAlertMode = useSetupStore(s => s.chooseAlertMode)
   const setTapWhileWatching = useSetupStore(s => s.setTapWhileWatching)
+  const setNudgeVibration = useSetupStore(s => s.setNudgeVibration)
 
   const modes = Object.keys(alertModeChoice) as Array<Preferences['alertMode']>
 
@@ -349,6 +350,31 @@ function AlertSection() {
           trackColor={{ false: theme.colors.border, true: theme.colors.me }}
           thumbColor={theme.colors.surface}
           accessibilityLabel="보고 있을 때도 짧게 떨기"
+        />
+      </View>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          marginTop: theme.spacing.md,
+        }}
+      >
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="bodyStrong">콕 찔리면 떨기</Text>
+          <Text variant="caption" color="textMuted">
+            상대가 콕 찌르면 약하게 두 번 떨어요. 보고 있을 때도 떨어요. 거슬리면
+            꺼두세요.
+          </Text>
+        </View>
+
+        <Switch
+          value={preferences.nudgeVibration}
+          onValueChange={on => void setNudgeVibration(on)}
+          trackColor={{ false: theme.colors.border, true: theme.colors.me }}
+          thumbColor={theme.colors.surface}
+          accessibilityLabel="콕 찔리면 떨기"
         />
       </View>
     </Section>

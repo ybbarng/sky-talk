@@ -56,24 +56,26 @@ function buzz(pattern: number[]): void {
 }
 
 export class HapticVibration implements Vibration {
-  /** 콕 찔렸을 때. 두 번 톡톡 친다 */
+  /**
+   * 콕 찔렸을 때. **약하게** 두 번 톡톡.
+   *
+   * 말 없이 "자니?" 하는 것이라 놀라게 하면 안 된다. 세게 울리면
+   * 옆자리 승객까지 돌아본다. 두 번인 것은 새 말이 왔을 때의
+   * 한 번(`tap`)과 손끝으로 구별하기 위해서다.
+   */
   async nudge(): Promise<void> {
     const haptics = load()
     if (!haptics.available) {
-      buzz([0, 80, 120, 80])
+      buzz([0, 40, 100, 40])
       return
     }
 
     try {
-      await haptics.module.notificationAsync(
-        haptics.module.NotificationFeedbackType.Success,
-      )
+      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Light)
       await wait(120)
-      await haptics.module.notificationAsync(
-        haptics.module.NotificationFeedbackType.Success,
-      )
+      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Light)
     } catch {
-      buzz([0, 80, 120, 80])
+      buzz([0, 40, 100, 40])
     }
   }
 
