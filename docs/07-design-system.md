@@ -351,7 +351,6 @@ Character id="mira"   →  지민이 고른 얼굴
 
 주 화면
   /(tabs)/chat                 대화
-  /(tabs)/talk                 통화
   /(tabs)/settings             설정
 
 겹쳐 뜨는 화면

@@ -32,19 +32,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="talk"
-        options={{
-          title: '통화',
-          tabBarIcon: ({ color }) => (
-            <Icon
-              name="mic"
-              size={22}
-              color={color === theme.colors.me ? 'me' : 'textMuted'}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: '설정',

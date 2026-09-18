@@ -355,9 +355,10 @@ export default function Chat() {
         typing={peerTyping}
         connected={connected}
         name={peerLabel(peer, profile?.peerNickname)}
-        canCall={call.available && connected}
+        // 블루투스로는 목소리를 못 나른다. 통화 모듈이 있어도 Wi-Fi 일 때만 건다.
+        canCall={call.available && connected && connection?.link === 'wifi'}
         onCall={() => void call.call('voice')}
-        onVideoCall={() => void call.call('video')}
+        cannotCallBecause={cannotCallBecause(call.available, connected, connection?.link)}
       />
 
       <KeyboardAvoidingView
@@ -540,7 +541,7 @@ function PeerHeader({
   name,
   canCall,
   onCall,
-  onVideoCall,
+  cannotCallBecause,
 }: {
   peerCharacter: Parameters<typeof Character>[0]['id']
   typing: boolean
@@ -548,9 +549,18 @@ function PeerHeader({
   name: string
   canCall: boolean
   onCall: () => void
-  onVideoCall: () => void
+  /** 걸 수 없을 때 왜 안 되는지. 눌렀을 때 잠깐 띄운다 */
+  cannotCallBecause: string
 }) {
   const theme = useTheme()
+  const [explain, setExplain] = useState(false)
+
+  // 몇 초 뒤에 저절로 접는다. 닫기 단추까지 두면 머리 부분이 시끄럽다.
+  useEffect(() => {
+    if (!explain) return
+    const timer = setTimeout(() => setExplain(false), 5_000)
+    return () => clearTimeout(timer)
+  }, [explain])
 
   const expression = !connected ? 'disconnected' : typing ? 'typing' : 'idle'
 
@@ -575,27 +585,42 @@ function PeerHeader({
       </View>
 
       {/*
-        통화 버튼은 **걸 수 있을 때만 보인다.**
-        눌러도 안 되는 버튼을 두면 "앱이 고장났나" 싶어진다.
+        통화 단추는 늘 보인다. 못 걸 때 눌리면 **왜 안 되는지** 적는다.
+        숨기면 "통화가 있긴 한가" 싶고, 눌러도 조용하면 "고장났나" 싶다.
+
+        영상 통화는 뺐다. 비행기에서는 블루투스뿐이라 목소리도 못
+        나르는데 얼굴까지 있으면 과하다.
       */}
-      {canCall && (
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Pressable
-            onPress={onCall}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="통화 걸기"
-          >
-            <Icon name="phone" size={22} />
-          </Pressable>
-          <Pressable
-            onPress={onVideoCall}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="영상 통화 걸기"
-          >
-            <Icon name="video" size={22} />
-          </Pressable>
+      <Pressable
+        onPress={() => {
+          if (canCall) onCall()
+          else setExplain(true)
+        }}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="통화 걸기"
+        style={{ opacity: canCall ? 1 : 0.45 }}
+      >
+        <Icon name="phone" size={22} />
+      </Pressable>
+
+      {explain && !canCall && (
+        <View
+          style={{
+            position: 'absolute',
+            right: theme.spacing.lg,
+            top: '100%',
+            maxWidth: '80%',
+            backgroundColor: theme.colors.surfaceRaised,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingHorizontal: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+            zIndex: 1,
+          }}
+        >
+          <Text variant="caption">{cannotCallBecause}</Text>
         </View>
       )}
     </View>
@@ -699,4 +724,23 @@ function useMe(raw: string | undefined): PeerId | null {
   if (raw === undefined) return null
   const parsed = peerId(raw)
   return parsed.ok ? parsed.value : null
+}
+
+/**
+ * 왜 지금 통화를 못 거나.
+ *
+ * 통화는 아직 준비가 덜 됐다. 그래서 어떤 이유든 "준비 중" 을 앞세우고,
+ * 그 뒤에 지금 상황에서 무엇 때문인지 한 줄 덧붙인다.
+ */
+function cannotCallBecause(
+  available: boolean,
+  connected: boolean,
+  link: string | null | undefined,
+): string {
+  if (!available) return '통화는 아직 준비 중이에요. 지금은 글로 이야기해 주세요.'
+  if (!connected) return '통화는 아직 준비 중이에요. 상대와 이어진 뒤에 걸 수 있어요.'
+  if (link !== 'wifi') {
+    return '통화는 아직 준비 중이에요. 블루투스로는 목소리를 나를 수 없어서 집에서 Wi-Fi 로 이었을 때만 돼요.'
+  }
+  return '통화는 아직 준비 중이에요.'
 }

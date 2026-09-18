@@ -102,7 +102,10 @@ export function FlightBar({ arrivesAt, totalMs }: FlightBarProps) {
             backgroundColor: theme.colors.bg,
           }}
         >
-          <Icon name="plane" size={16} color={arrived ? 'success' : 'me'} />
+          {/* 그림은 위를 보고 있다. 오른쪽으로 날아가는 모양이 되게 돌린다 */}
+          <View style={{ transform: [{ rotate: '90deg' }] }}>
+            <Icon name="plane" size={16} color={arrived ? 'success' : 'me'} />
+          </View>
         </View>
       </View>
 
