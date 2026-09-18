@@ -69,7 +69,7 @@ export function allGranted(
  * **무엇을 누르면 되는지 적는다.** 영어 권한 이름을 띄우면 손쓸 수 없다.
  */
 export const BLUETOOTH_DENIED =
-  '블루투스를 쓸 수 없어서 상대를 못 찾아요.\n설정 → 앱 → Skywalkie → 권한에서 근처 기기를 켜주세요.'
+  '블루투스를 쓸 수 없어서 상대를 못 찾아요.\n설정 → 앱 → SkyTalk → 권한에서 근처 기기를 켜주세요.'
 
 /**
  * 실제로 물어본다.

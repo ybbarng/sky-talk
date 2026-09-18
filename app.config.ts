@@ -121,6 +121,8 @@ const config: ExpoConfig = {
         modes: ['central', 'peripheral'],
       },
     ],
+    // 홈 화면 이름은 SkyTalk. 속 이름(패키지·번들)은 그대로다. 바꾸면 새 앱이 된다.
+    './plugins/withDisplayName',
     // **맨 뒤여야 한다.** `expo-notifications` 가 붙여둔 원격 푸시 권한을
     // 떼는 일이라, 붙인 다음에 와야 지워진다.
     './plugins/withoutPushEntitlement',

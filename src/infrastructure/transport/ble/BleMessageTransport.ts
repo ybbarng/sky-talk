@@ -382,7 +382,7 @@ export class BleMessageTransport implements MessageTransport {
 
       // **돌려주는 값을 본다.** 안 보면 알리기가 실패했는데도 열린
       // 것으로 치고, 아무도 우리를 못 보는 채로 기다리게 된다.
-      const started = await peripheral.module.start('Skywalkie')
+      const started = await peripheral.module.start('SkyTalk')
       if (started !== true) {
         return err(domainError('not-found', '블루투스로 알리지 못했다', 'ble'))
       }
@@ -741,7 +741,7 @@ export const POWER_ON_TIMEOUT_MS = 60_000
 /** 화면에 띄울 말. **무엇을 누르면 되는지** 적는다 */
 const BLUETOOTH_BLOCKED: Readonly<Record<string, string>> = {
   PoweredOff: '블루투스가 꺼져 있어요.\n제어 센터나 설정에서 블루투스를 켜주세요.',
-  Unauthorized: '블루투스를 쓸 수 없어요.\n설정 → Skywalkie → 블루투스를 켜주세요.',
+  Unauthorized: '블루투스를 쓸 수 없어요.\n설정 → SkyTalk → 블루투스를 켜주세요.',
   Unsupported: '이 기기는 블루투스로 상대를 찾을 수 없어요.',
 }
 
