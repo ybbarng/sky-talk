@@ -37,6 +37,7 @@ import { useLinkNotifications } from '@/presentation/hooks/useLinkNotifications'
 import { useMessageNotifications } from '@/presentation/hooks/useMessageNotifications'
 import { useReconnectOnForeground } from '@/presentation/hooks/useReconnectOnForeground'
 import { useStayAlive } from '@/presentation/hooks/useStayAlive'
+import { useStickToBottom } from '@/presentation/hooks/useStickToBottom'
 import { useVoiceAutoplay } from '@/presentation/hooks/useVoiceAutoplay'
 import { useWebFallback } from '@/presentation/hooks/useWebFallback'
 import { decidePhase } from '@/presentation/stores/connectPhase'
@@ -91,6 +92,8 @@ export default function Chat() {
 
   const me = useMe(profile?.peerId)
   const listRef = useRef<FlatList<Message>>(null)
+  // 바닥을 보고 있을 때만 새 말을 따라 내려간다. 내가 보낸 말은 늘 보인다.
+  const bottom = useStickToBottom(listRef)
 
   const call = useCallStore()
   const preferences = useSetupStore(s => s.preferences)
@@ -400,13 +403,18 @@ export default function Chat() {
             )
           }
           ListFooterComponent={peerTyping ? <TypingIndicator /> : null}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          onScroll={bottom.onScroll}
+          scrollEventThrottle={bottom.scrollEventThrottle}
+          onContentSizeChange={bottom.onContentSizeChange}
+          // 도구 줄이나 이모티콘 서랍이 열려 목록이 짧아져도 마지막 말이 보인다
+          onLayout={bottom.onLayout}
         />
 
         {stickersOpen && (
           <StickerPanel
             character={profile.character}
             onPick={pose => {
+              bottom.pin()
               void sendSticker(pose)
               setStickersOpen(false)
             }}
@@ -415,9 +423,15 @@ export default function Chat() {
         )}
 
         <MessageInput
-          onSend={text => void send(text)}
+          onSend={text => {
+            bottom.pin()
+            void send(text)
+          }}
           onTyping={typing => sendTyping(typing)}
-          onNudge={() => void sendNudgeToPeer()}
+          onNudge={() => {
+            bottom.pin()
+            void sendNudgeToPeer()
+          }}
           onStickers={() => setStickersOpen(open => !open)}
           // 누르면 앨범, 길게 누르면 카메라.
           // 기내식이나 창밖을 바로 찍어 보낼 때가 있다.

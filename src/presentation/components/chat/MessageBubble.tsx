@@ -7,6 +7,7 @@ import { useTheme } from '../../theme/ThemeProvider'
 import { DoodleRenderer } from '../doodle/DoodleRenderer'
 import { Icon } from '../Icon'
 import { Text } from '../Text'
+import { BUBBLE_MAX_WIDTH } from './bubbleLayout'
 import { DeliveryMark } from './DeliveryMark'
 import { PhotoBubble } from './PhotoBubble'
 import { VoiceBubble } from './VoiceBubble'
@@ -69,7 +70,7 @@ export function MessageBubble({
     <View
       style={{
         alignSelf: mine ? 'flex-end' : 'flex-start',
-        maxWidth: '82%',
+        maxWidth: BUBBLE_MAX_WIDTH,
         marginTop: grouped ? theme.spacing.xs : theme.spacing.md,
       }}
     >
@@ -151,7 +152,7 @@ function BubbleContent({
         <View
           style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
         >
-          <Icon name="alert" size={18} />
+          <Icon name="poke" size={18} />
           <Text style={{ color: textColor }}>콕 찔렀어요</Text>
         </View>
       )
