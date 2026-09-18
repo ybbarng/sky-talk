@@ -46,6 +46,13 @@ interface CallStore {
   switchCamera(): Promise<void>
   setAudioMode(mode: AudioMode): void
   dismissNotice(): void
+  /**
+   * 끝난 통화 화면을 치운다.
+   *
+   * 끝난 뒤에는 "끊기" 가 할 일이 없다. 그래서 닫기가 끊기를 부르면
+   * 아무 일도 안 일어나고 화면이 그대로 남는다(실제로 그랬다).
+   */
+  dismissEnded(): void
 }
 
 interface AttachInput {
@@ -226,6 +233,11 @@ export const useCallStore = create<CallStore>((set, get) => {
 
     dismissNotice() {
       set({ notice: null })
+    },
+
+    dismissEnded() {
+      if (get().state.phase !== 'ended') return
+      set({ state: CallState.idle(), notice: null })
     },
   }
 })

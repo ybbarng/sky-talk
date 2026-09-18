@@ -454,7 +454,7 @@ export default function Chat() {
         onToggleMute={call.toggleMute}
         onRetry={() => void call.call('voice')}
         onDismissNotice={call.dismissNotice}
-        onClose={() => void call.hangUp()}
+        onClose={call.dismissEnded}
       />
     </SafeAreaView>
   )
