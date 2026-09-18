@@ -341,3 +341,63 @@ describe('둘 다 안 될 때', () => {
     expect(FakeManager.latest).toBeNull()
   })
 })
+
+describe('사진 조각은 글에 양보한다', () => {
+  it('알리는 쪽은 줄이 짧아질 때까지 다음 조각을 안 넣는다', async () => {
+    vi.useFakeTimers()
+    peripheralWorks()
+    // 처음 몇 번은 줄이 길다고 답하다가 짧아진다
+    const queuedAnswers = [50, 50, 0]
+    const sent = vi.fn(async () => true)
+    // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 흉내다
+    ;(peripheral as any).module.send = sent
+    // biome-ignore lint/suspicious/noExplicitAny: 위와 같다
+    ;(peripheral as any).module.queued = () => queuedAnswers.shift() ?? 0
+
+    const link = new BleMessageTransport('host')
+    await link.connect()
+
+    const sending = link.send({
+      v: 1,
+      t: 'asset_chunk',
+      id: '01K5F8ZPXQ0000000000000001',
+      seq: 0,
+      ts: 1758000000000,
+      p: { assetId: '01K5F8ZPXQ0000000000000002', index: 0, data: 'QUJD' },
+    })
+
+    await vi.advanceTimersByTimeAsync(10)
+    // 아직 줄이 길다. 첫 조각도 안 나갔다.
+    expect(sent).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await sending
+
+    expect(result.ok).toBe(true)
+    expect(sent).toHaveBeenCalled()
+  })
+
+  it('글은 줄을 안 본다', async () => {
+    peripheralWorks()
+    const sent = vi.fn(async () => true)
+    // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 흉내다
+    ;(peripheral as any).module.send = sent
+    // biome-ignore lint/suspicious/noExplicitAny: 위와 같다
+    ;(peripheral as any).module.queued = () => 9_999
+
+    const link = new BleMessageTransport('host')
+    await link.connect()
+
+    const result = await link.send({
+      v: 1,
+      t: 'ack',
+      id: '01K5F8ZPXQ0000000000000001',
+      seq: 1,
+      ts: 1758000000000,
+      p: { messageId: '01K5F8ZPXQ0000000000000003' },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(sent).toHaveBeenCalled()
+  })
+})

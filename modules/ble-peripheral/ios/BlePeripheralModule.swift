@@ -74,6 +74,11 @@ public class BlePeripheralModule: Module {
       promise.resolve(handler.send(base64: base64))
     }
 
+    /// 아직 안 나간 조각 수. JS 가 사진 조각을 밀어 넣는 속도를 여기에 맞춘다
+    Function("queued") { () -> Int in
+      return self.delegate?.queued ?? 0
+    }
+
     Function("isAdvertising") { () -> Bool in
       return self.manager?.isAdvertising ?? false
     }
@@ -94,6 +99,8 @@ private class PeripheralDelegate: NSObject, CBPeripheralManagerDelegate {
 
   /// 이만큼 밀리면 더 안 받는다. 사진 하나가 400조각쯤이라 넉넉히 둔다
   private let maxBacklog = 4_000
+
+  var queued: Int { backlog.count }
 
   init(localName: String, emit: @escaping (String, [String: Any]) -> Void) {
     self.localName = localName

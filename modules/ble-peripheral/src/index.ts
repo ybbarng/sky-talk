@@ -31,6 +31,8 @@ export interface BlePeripheralModule {
   /** 조각 하나를 보낸다. 자리가 없으면 false. **거기서 멈춰야 한다** */
   send(base64: string): Promise<boolean>
   isAdvertising(): boolean
+  /** 아직 안 나간 조각 수. 사진 조각을 밀어 넣는 속도를 여기에 맞춘다 */
+  queued(): number
   addListener<K extends keyof BlePeripheralEvents>(
     event: K,
     handler: BlePeripheralEvents[K],

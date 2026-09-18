@@ -236,6 +236,9 @@ class BlePeripheralModule : Module() {
       runCatching { sendChunk(base64) }.getOrDefault(false)
     }
 
+    /** 아직 안 나간 조각 수. JS 가 사진 조각을 밀어 넣는 속도를 여기에 맞춘다 */
+    Function("queued") { backlog.size }
+
     Function("isAdvertising") { advertising }
   }
 

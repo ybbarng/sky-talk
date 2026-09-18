@@ -233,7 +233,14 @@ export class BleMessageTransport implements MessageTransport {
 
     this.bundle = (this.bundle + 1) % 256
 
+    // **사진·음성 조각은 글에 양보한다.** 알리는 쪽은 조각을 줄에 세우기만
+    // 하면 되므로 360조각을 한꺼번에 밀어 넣을 수 있는데, 그러면 그 뒤에
+    // 보낸 글이 몇십 초 동안 줄 뒤에서 기다린다. 줄이 짧을 때만 다음
+    // 조각을 넣으면 글은 몇 조각 뒤에 바로 끼어든다.
+    const gentle = envelope.t === 'asset_chunk'
+
     for (const part of parts.value) {
+      if (gentle) await this.waitForShortQueue()
       const sent = await this.writeRaw(encodeChunk(part))
       // **하나가 실패하면 멈춘다.** 계속 밀어 넣으면 조용히 버려지고,
       // 상대는 반쪽짜리 묶음을 5초 들고 있다 버린다.
@@ -532,6 +539,24 @@ export class BleMessageTransport implements MessageTransport {
     }
   }
 
+  /** 알리는 쪽의 줄이 짧아질 때까지 기다린다. 찾는 쪽은 쓰기마다 답을 받아 줄이 없다 */
+  private async waitForShortQueue(): Promise<void> {
+    if (this.role !== 'advertiser') return
+    const peripheral = loadBlePeripheral()
+    if (!peripheral.available || typeof peripheral.module.queued !== 'function') return
+
+    for (let waited = 0; waited < QUEUE_WAIT_MAX_MS; waited += QUEUE_POLL_MS) {
+      let queued = 0
+      try {
+        queued = peripheral.module.queued()
+      } catch {
+        return
+      }
+      if (queued <= QUEUE_HIGH_WATER) return
+      await pause(QUEUE_POLL_MS)
+    }
+  }
+
   private async writeRaw(raw: Uint8Array): Promise<boolean> {
     const base64 = bytesToBase64(raw)
 
@@ -618,6 +643,12 @@ export const SCAN_TIMEOUT_MS = 20_000
 
 /** 한 바퀴 돌고 쉬는 시간 */
 export const SCAN_PAUSE_MS = 1_000
+
+/** 알리는 쪽 줄에 이만큼 넘게 밀려 있으면 사진 조각을 더 안 넣는다 */
+export const QUEUE_HIGH_WATER = 12
+const QUEUE_POLL_MS = 25
+/** 줄이 안 줄어도 이만큼 지나면 그냥 넣는다. 영영 멈추지는 않는다 */
+const QUEUE_WAIT_MAX_MS = 10_000
 
 /**
  * 켜지기를 이만큼 기다린다.
