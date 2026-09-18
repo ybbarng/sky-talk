@@ -170,6 +170,7 @@ function BubbleContent({
         <StickerWithMeaning
           character={message.content.character as CharacterId}
           pose={message.content.pose}
+          mine={message.isMine(me)}
         />
       )
 
@@ -268,9 +269,12 @@ function formatTime(at: Date): string {
 function StickerWithMeaning({
   character,
   pose,
+  mine,
 }: {
   character: CharacterId
   pose: Parameters<typeof stickerMeaning>[0]
+  /** 내 것이면 왼쪽 빈자리에, 상대 것이면 오른쪽 빈자리에 뜻이 뜬다 */
+  mine: boolean
 }) {
   const theme = useTheme()
   const [showing, setShowing] = useState(false)
@@ -287,19 +291,37 @@ function StickerWithMeaning({
       accessibilityRole="button"
       accessibilityLabel={`이모티콘, ${stickerMeaning(pose)}`}
       accessibilityHint="길게 누르면 무슨 뜻인지 보여요"
-      style={{ alignItems: 'center', gap: theme.spacing.xs }}
+      style={{ alignItems: 'center' }}
     >
       <Sticker character={character} pose={pose} size={120} />
+      {/*
+        뜻은 **옆 빈자리**에 띄운다. 아래에 끼워 넣으면 목록이 밀려 스크롤이
+        움직이고, 손가락에 가린다. 자리를 차지하지 않게 떠 있는 채로 둔다.
+      */}
       {showing && (
         <View
           style={{
-            backgroundColor: theme.colors.surfaceRaised,
-            borderRadius: theme.radius.pill,
-            paddingHorizontal: theme.spacing.md,
-            paddingVertical: 4,
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            ...(mine
+              ? { right: '100%', marginRight: theme.spacing.sm }
+              : { left: '100%', marginLeft: theme.spacing.sm }),
           }}
         >
-          <Text variant="caption">{stickerMeaning(pose)}</Text>
+          <View
+            style={{
+              backgroundColor: theme.colors.surfaceRaised,
+              borderRadius: theme.radius.pill,
+              paddingHorizontal: theme.spacing.md,
+              paddingVertical: 4,
+            }}
+          >
+            <Text variant="caption" numberOfLines={1}>
+              {stickerMeaning(pose)}
+            </Text>
+          </View>
         </View>
       )}
     </Pressable>
