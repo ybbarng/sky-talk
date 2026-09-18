@@ -64,26 +64,17 @@ export class HapticVibration implements Vibration {
    * 한 번(`tap`)과 손끝으로 구별하기 위해서다.
    */
   async nudge(): Promise<void> {
-    // **안드로이드는 진동 모터를 직접 돌린다.** 햅틱의 가벼운 톡은 삼성 폰에서
-    // 거의 안 느껴져서 "진동이 안 온다" 고 했다(2026-09-19). 짧게 두 번.
-    if (Platform.OS === 'android') {
-      buzz([0, 70, 90, 70])
+    // **햅틱이 아니라 진동 모터를 직접 돌린다.** 햅틱은 아이폰의 "시스템
+    // 햅틱" 설정이 꺼져 있으면 아예 안 울리고, 삼성 폰에서는 가벼운 톡이
+    // 거의 안 느껴진다. 실제로 두 폰 다 "진동이 없다" 고 했다(2026-09-19).
+    // 모터는 설정과 상관없이 돈다. 아이폰은 한 번의 길이가 정해져 있어
+    // 숫자는 사이 간격만 뜻한다.
+    if (Platform.OS === 'ios') {
+      buzz([0, 400, 250, 400])
       return
     }
 
-    const haptics = load()
-    if (!haptics.available) {
-      buzz([0, 70, 90, 70])
-      return
-    }
-
-    try {
-      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Medium)
-      await wait(120)
-      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Medium)
-    } catch {
-      buzz([0, 70, 90, 70])
-    }
+    buzz([0, 70, 90, 70])
   }
 
   /**
@@ -137,8 +128,4 @@ export class HapticVibration implements Vibration {
       // 조용히 넘어간다
     }
   }
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
