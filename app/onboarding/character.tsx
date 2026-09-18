@@ -46,7 +46,7 @@ export default function ChooseCharacter() {
   return (
     <StepLayout
       step={2}
-      totalSteps={4}
+      totalSteps={3}
       title="우리 둘을 정해요"
       description="내 모습과 이름, 그리고 상대를 뭐라고 부를지 정해요."
       primaryDisabled={!ready}
@@ -65,7 +65,7 @@ export default function ChooseCharacter() {
           메시지는 여기 해당하지 않는다. 그쪽은 잃으면 안 되므로
           저장을 먼저 한다(CLAUDE.md).
         */
-        router.push('/onboarding/audio-mode')
+        router.push('/onboarding/connect')
 
         void (async () => {
           await chooseCharacter(character)

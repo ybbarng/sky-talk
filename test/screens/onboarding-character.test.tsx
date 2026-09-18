@@ -89,7 +89,7 @@ describe('이름을 넣으면 넘어간다', () => {
 
     await view.press('다음')
 
-    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/audio-mode'))
+    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/connect'))
   })
 
   it('별명까지 넣어도 넘어간다', async () => {
@@ -99,7 +99,7 @@ describe('이름을 넣으면 넘어간다', () => {
     await view.press('여자친구')
     await view.press('다음')
 
-    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/audio-mode'))
+    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/connect'))
   })
 
   it('넣은 이름이 저장된다', async () => {
@@ -127,6 +127,6 @@ describe('저장소가 답을 안 해도 넘어간다', () => {
     await view.type('예: 지민', '용배')
     await view.press('다음')
 
-    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/audio-mode'))
+    await vi.waitFor(() => expect(pushed.to).toContain('/onboarding/connect'))
   })
 })

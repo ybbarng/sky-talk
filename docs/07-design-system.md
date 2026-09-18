@@ -275,7 +275,6 @@ Character id="mira"   →  지민이 고른 얼굴
 ```
 1. 시작하기        무엇을 하는 앱인지
 2. 나를 어떻게 보여줄까요   캐릭터와 이름
-3. 어떻게 말할까요         소리 방식
 4. 이어보기               역할에 맞는 단계만
 ```
 
@@ -356,7 +355,6 @@ Character id="mira"   →  지민이 고른 얼굴
   /onboarding/character        캐릭터 고르기
   /onboarding/connect          연결 안내 (역할별로 다름)
   /onboarding/permissions      권한 요청
-  /onboarding/audio-mode       말하기 방식 고르기
 
 주 화면
   /(tabs)/chat                 대화

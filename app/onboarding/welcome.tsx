@@ -20,7 +20,7 @@ export default function Welcome() {
   return (
     <StepLayout
       step={1}
-      totalSteps={4}
+      totalSteps={3}
       title={welcome.title}
       primaryLabel="시작하기"
       onPrimary={() => router.push('/onboarding/character')}

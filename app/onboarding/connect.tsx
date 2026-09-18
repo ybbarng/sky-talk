@@ -1,6 +1,5 @@
 import { router } from 'expo-router'
 import { Linking, Platform, View } from 'react-native'
-import { homeHotspot } from '@/composition/hotspot'
 import { notifier } from '@/composition/services'
 import { Button } from '@/presentation/components/Button'
 import { Card } from '@/presentation/components/Card'
@@ -28,8 +27,8 @@ export default function Connect() {
 
   return (
     <StepLayout
-      step={4}
-      totalSteps={4}
+      step={3}
+      totalSteps={3}
       title={role === 'host' ? '내가 알리는 쪽이에요' : '내가 찾는 쪽이에요'}
       description={`${roleReason[role]}.`}
       onPrimary={() => {
@@ -82,8 +81,6 @@ export default function Connect() {
         ))}
       </View>
 
-      <HotspotCard role={role} />
-
       <Card>
         <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
           <Icon name="alert" size={18} />
@@ -96,72 +93,6 @@ export default function Connect() {
         </View>
       </Card>
     </StepLayout>
-  )
-}
-
-/**
- * 핫스팟 이름과 비밀번호.
- *
- * **집에서 준비할 때만 쓴다.** 비행기 모드에서는 핫스팟이 안 켜진다
- * (docs/02-tech-decisions.md D1). 그래서 "이걸 켜세요" 가 아니라
- * "집에서는 이걸로 더 많은 걸 할 수 있어요" 로 적는다.
- *
- * 자리에 앉아서 이 카드를 읽고 잠긴 메뉴를 들여다보게 만들면 안 된다.
- *
- * 붙는 쪽 화면에도 그대로 뜬다. 그래야 상대 폰을 넘겨다보지 않아도
- * 혼자 들어갈 수 있다. 길게 누르면 복사된다.
- */
-function HotspotCard({ role }: { role: 'host' | 'guest' }) {
-  const theme = useTheme()
-
-  // `.env` 에 안 적어뒀다. 안내를 접고 예전처럼 상대 화면을 보고 들어간다.
-  if (homeHotspot === null) return null
-
-  return (
-    <Card raised style={{ gap: theme.spacing.sm }}>
-      <Text variant="heading">집에서는 Wi-Fi 로 더 많이 할 수 있어요</Text>
-
-      <Text variant="caption" color="textMuted">
-        {'비행기에서는 블루투스로 글과 이모지만 오갑니다. 집에서 핫스팟을 켜두면 '}
-        {'사진과 목소리까지 오가요. 비행기 모드에서는 핫스팟이 안 켜지니 '}
-        {'자리에 앉으면 이건 잊으셔도 됩니다.'}
-      </Text>
-
-      <Field label="이름" value={homeHotspot.ssid} />
-      <Field label="비밀번호" value={homeHotspot.password} />
-
-      <Text variant="caption" color="textMuted">
-        {role === 'host'
-          ? '핫스팟 이름을 이것과 같게 맞춰두면 상대 폰이 알아서 찾습니다.'
-          : '길게 누르면 복사돼요. 한 번 들어가두면 폰이 기억합니다.'}
-      </Text>
-    </Card>
-  )
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  const theme = useTheme()
-
-  return (
-    <View style={{ gap: 2 }}>
-      <Text variant="caption" color="textMuted">
-        {label}
-      </Text>
-
-      <Text
-        variant="bodyStrong"
-        selectable
-        style={{
-          color: theme.colors.me,
-          backgroundColor: theme.colors.surfaceRaised,
-          borderRadius: theme.radius.md,
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-        }}
-      >
-        {value}
-      </Text>
-    </View>
   )
 }
 
