@@ -1,16 +1,7 @@
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  AppState,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  View,
-} from 'react-native'
+import { AppState, FlatList, KeyboardAvoidingView, Pressable, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   narrowSeconds,
@@ -30,6 +21,7 @@ import { CallOverlay } from '@/presentation/components/call/CallOverlay'
 import { FlightBar } from '@/presentation/components/chat/FlightBar'
 import { MessageBubble } from '@/presentation/components/chat/MessageBubble'
 import { MessageInput } from '@/presentation/components/chat/MessageInput'
+import { PhotoViewer } from '@/presentation/components/chat/PhotoViewer'
 import { StickerPanel } from '@/presentation/components/chat/StickerPanel'
 import { TypingIndicator } from '@/presentation/components/chat/TypingIndicator'
 import { showsTime } from '@/presentation/components/chat/timeMarks'
@@ -391,7 +383,10 @@ export default function Chat() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // 안드로이드도 밀어 올린다. edge-to-edge 에서는 창이 저절로 안 줄어서
+        // 키보드가 입력칸을 덮었다(2026-09-19). 목록이 뒤집혀 있어 보던 아래쪽이
+        // 키보드 위로 그대로 따라 올라온다.
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         <FlatList
@@ -495,27 +490,7 @@ export default function Chat() {
       </KeyboardAvoidingView>
 
       {/* 다 받은 사진을 누르면 화면 가득 본다. 아무 데나 누르면 닫힌다 */}
-      <Modal
-        visible={viewingPhoto !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewingPhoto(null)}
-      >
-        <Pressable
-          onPress={() => setViewingPhoto(null)}
-          accessibilityRole="button"
-          accessibilityLabel="사진 닫기"
-          style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: 'center' }}
-        >
-          {viewingPhoto !== null && (
-            <Image
-              source={{ uri: viewingPhoto }}
-              resizeMode="contain"
-              style={{ width: '100%', height: '100%' }}
-            />
-          )}
-        </Pressable>
-      </Modal>
+      <PhotoViewer uri={viewingPhoto} onClose={() => setViewingPhoto(null)} />
 
       <CallOverlay
         state={call.state}
