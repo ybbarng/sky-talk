@@ -11,7 +11,13 @@ import type { ConnectionRole } from '../wifi/DiscoveryPlan'
 import { base64ToBytes, bytesToBase64 } from './base64'
 import { BLE_UUIDS, loadBle } from './bleModule'
 import { askForBluetooth } from './blePermission'
-import { CONSERVATIVE_MTU, chunk, decodeChunk, encodeChunk } from './chunk/Chunker'
+import {
+  CONSERVATIVE_MTU,
+  chunk,
+  decodeChunk,
+  encodeChunk,
+  HEADER_BYTES,
+} from './chunk/Chunker'
 import { Reassembler } from './chunk/Reassembler'
 
 /**
@@ -66,6 +72,11 @@ export class BleMessageTransport implements MessageTransport {
 
   private bundle = 0
   private mtu = CONSERVATIVE_MTU
+
+  /** 이어져 있는 동안 도는 심장박동. 상대가 조용하면 끊긴 것으로 본다 */
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  /** 상대에게서 마지막으로 무엇이든 받은 때 */
+  private lastHeardAt = 0
 
   /** 무전기가 켜져 있나. 켜져 있으면 `connect()` 를 다시 불러도 아무것도 안 한다 */
   private opened = false
@@ -179,6 +190,7 @@ export class BleMessageTransport implements MessageTransport {
     // 뒤에서 도는 찾기 고리를 멈춘다. 번호가 바뀌면 고리가 알아서 빠진다.
     this.epoch += 1
     this.opened = false
+    this.stopHeartbeat()
 
     this.dropSubscriptions()
     this.reassembler.clear()
@@ -203,6 +215,60 @@ export class BleMessageTransport implements MessageTransport {
 
     this.device = null
     this.manager = null
+  }
+
+  /**
+   * 심장박동을 돌린다. **눈에 보이지 않는다.**
+   *
+   * 블루투스는 링크가 죽어도 한참 동안 아무 말이 없다. 양쪽이 몇 초마다 빈
+   * 머리말 하나를 보내고, 한참 아무것도 못 받으면 끊긴 것으로 본다. 찾는
+   * 쪽은 연결을 놓고 다시 찾고, 알리는 쪽은 끊김으로 표시하고 상대가 다시
+   * 찾아오길 기다린다. 한쪽만 움직이므로 서로 끊고 붙기를 되풀이하지 않는다.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat()
+    this.lastHeardAt = Date.now()
+
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.state.isUsable()) return
+
+      if (Date.now() - this.lastHeardAt > HEARTBEAT_DEAD_MS) {
+        void this.onLinkDead()
+        return
+      }
+
+      void this.writeRaw(PING).then(sent => {
+        // 보내는 것조차 안 되면 링크가 이미 죽은 것이다
+        if (!sent) void this.onLinkDead()
+      })
+    }, HEARTBEAT_INTERVAL_MS)
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = null
+  }
+
+  /** 상대가 한참 조용하다. 끊긴 것으로 보고 정리한다 */
+  private async onLinkDead(): Promise<void> {
+    this.stopHeartbeat()
+    if (!this.state.isUsable()) return
+
+    this.dropSubscriptions()
+    this.reassembler.clear()
+    this.moveTo(this.state.lose())
+
+    if (this.role === 'scanner') {
+      const device = this.device
+      this.device = null
+      try {
+        await device?.cancelConnection?.()
+      } catch {
+        // 이미 떨어졌다
+      }
+      void this.keepLooking(this.epoch)
+    }
+    // 알리는 쪽은 그대로 알린다. 상대가 다시 찾아와 듣겠다고 하면 붙는다.
   }
 
   private dropSubscriptions(): void {
@@ -304,8 +370,10 @@ export class BleMessageTransport implements MessageTransport {
             if (event.mtu > 0) this.mtu = Math.min(event.mtu, CONSERVATIVE_MTU)
             this.moveTo(this.state.startHandshake('ble'))
             this.moveTo(this.state.establish())
+            this.startHeartbeat()
           } else {
             // 상대가 떨어졌다. 알리기는 계속되므로 다시 찾아오면 붙는다.
+            this.stopHeartbeat()
             this.reassembler.clear()
             this.moveTo(this.state.lose())
           }
@@ -520,6 +588,7 @@ export class BleMessageTransport implements MessageTransport {
         this.subscriptions.push(
           device.onDisconnected(() => {
             if (!this.alive(epoch) || this.device !== device) return
+            this.stopHeartbeat()
             this.dropSubscriptions()
             this.reassembler.clear()
             this.device = null
@@ -530,6 +599,7 @@ export class BleMessageTransport implements MessageTransport {
       }
 
       this.moveTo(this.state.establish())
+      this.startHeartbeat()
       return true
     } catch {
       // 붙다가 놓쳤다. 고리가 다시 찾는다.
@@ -584,6 +654,9 @@ export class BleMessageTransport implements MessageTransport {
 
   /** 조각이 왔다. 다 모이면 봉투로 바꿔 올린다 */
   private onRaw(raw: Uint8Array): void {
+    // 무엇이든 왔으면 살아 있는 것이다. 심장박동(빈 머리말)도 여기서 걸린다.
+    this.lastHeardAt = Date.now()
+
     const part = decodeChunk(raw)
     // 이상한 조각은 버리되 **연결은 끊지 않는다.** 같은 방의 다른
     // 기기가 보낸 것일 수 있다.
@@ -637,6 +710,13 @@ type ScanRound =
   | { readonly kind: 'found'; readonly device: any }
   | { readonly kind: 'nobody' }
   | { readonly kind: 'error'; readonly why: string }
+
+/** 심장박동 간격. 눈에 안 보이는 빈 머리말 하나다 */
+export const HEARTBEAT_INTERVAL_MS = 10_000
+/** 이만큼 아무것도 못 받으면 끊긴 것으로 본다. 박동 세 번을 놓친 것이다 */
+export const HEARTBEAT_DEAD_MS = 35_000
+/** 빈 머리말. 받는 쪽은 조각 수가 0이라 버리지만 살아 있다는 표시로는 센다 */
+const PING = new Uint8Array(HEADER_BYTES)
 
 /** 한 바퀴에 이만큼 찾는다. 그 뒤 잠깐 쉬고 다시 찾는다 */
 export const SCAN_TIMEOUT_MS = 20_000

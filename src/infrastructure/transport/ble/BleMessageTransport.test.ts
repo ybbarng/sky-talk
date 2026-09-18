@@ -39,9 +39,13 @@ vi.mock('./blePermission', () => ({
         },
 }))
 
-const { BleMessageTransport, SCAN_PAUSE_MS, SCAN_TIMEOUT_MS } = await import(
-  './BleMessageTransport'
-)
+const {
+  BleMessageTransport,
+  HEARTBEAT_DEAD_MS,
+  HEARTBEAT_INTERVAL_MS,
+  SCAN_PAUSE_MS,
+  SCAN_TIMEOUT_MS,
+} = await import('./BleMessageTransport')
 
 /** 알리기가 되는 척한다. 붙었다는 신호까지 흉내 낸다 */
 function peripheralWorks(): void {
@@ -399,5 +403,59 @@ describe('사진 조각은 글에 양보한다', () => {
 
     expect(result.ok).toBe(true)
     expect(sent).toHaveBeenCalled()
+  })
+})
+
+describe('심장박동', () => {
+  it('상대가 한참 조용하면 끊긴 것으로 보고 다시 찾는다', async () => {
+    vi.useFakeTimers()
+    centralWorks()
+
+    const link = new BleMessageTransport('guest')
+    await link.connect()
+    const manager = FakeManager.latest
+    const device = fakeDevice()
+    const cancelled = vi.fn(async () => undefined)
+    device.cancelConnection = cancelled
+
+    manager?.appear(device)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(link.currentState().isUsable()).toBe(true)
+
+    // 아무것도 안 오는 채로 박동 세 번이 넘게 지난다
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_DEAD_MS + HEARTBEAT_INTERVAL_MS)
+
+    expect(link.currentState().isUsable()).toBe(false)
+    expect(cancelled).toHaveBeenCalled()
+    // 놓기만 하고 손을 놓지 않는다. 다시 찾는다.
+    expect(manager?.started).toHaveBeenCalledTimes(2)
+  })
+
+  it('무엇이든 받고 있으면 끊긴 것으로 보지 않는다', async () => {
+    vi.useFakeTimers()
+    peripheralWorks()
+
+    const listeners: Record<string, (event: unknown) => void> = {}
+    // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 흉내다
+    ;(peripheral as any).module.addListener = (
+      name: string,
+      handler: (e: unknown) => void,
+    ) => {
+      listeners[name] = handler
+      return { remove: () => undefined }
+    }
+
+    const link = new BleMessageTransport('host')
+    await link.connect()
+    listeners.onSubscribe?.({ subscribed: true, mtu: 180 })
+    expect(link.currentState().isUsable()).toBe(true)
+
+    // 빈 머리말(심장박동)이 계속 온다
+    for (let i = 0; i < 6; i += 1) {
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_INTERVAL_MS)
+      listeners.onReceive?.({ data: 'AAAAAAA=' })
+    }
+
+    expect(link.currentState().isUsable()).toBe(true)
   })
 })
