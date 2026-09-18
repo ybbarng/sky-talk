@@ -95,6 +95,13 @@ export const preferencesSchema = z.object({
    * 왔는지 알 수 없다. 도착 시각과 짝으로 다닌다.
    */
   flightTotalMs: z.number().int().positive().optional(),
+  /**
+   * 이 시각 전의 말은 화면에 안 보인다. "대화 비우기" 가 정한다.
+   *
+   * **지우지 않고 감춘다.** 지우면 순번이 0으로 돌아가 다음 인사 때 상대가
+   * 전부 다시 보내 화면이 도로 채워진다. 꺼내둔 파일에도 그대로 남는다.
+   */
+  hideMessagesBefore: z.number().int().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

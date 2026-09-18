@@ -302,7 +302,17 @@ export default function Chat() {
   // **목록은 뒤집어 그린다.** 가장 새 말이 0번이고 화면 아래에 붙는다. 그래서
   // 도구 줄이나 키보드로 목록 키가 바뀌어도 보던 아래쪽이 그대로 따라오고,
   // 새 말은 바닥에 있을 때만 보인다. 위로 올려 옛 말을 읽는 중이면 안 움직인다.
-  const ordered = useMemo(() => [...messages].reverse(), [messages])
+  // "대화 비우기" 이전의 말은 안 보인다. 지운 것이 아니라 감춘 것이다.
+  const hideBefore = preferences.hideMessagesBefore ?? 0
+  const ordered = useMemo(
+    () => [...messages].filter(m => m.orderedAt().getTime() >= hideBefore).reverse(),
+    [messages, hideBefore],
+  )
+  // 감춘 것까지 내려갔으면 더 불러올 것이 없다
+  const oldestShown = messages[0]
+  const canLoadOlder =
+    hasMore &&
+    (oldestShown === undefined || oldestShown.orderedAt().getTime() >= hideBefore)
 
   // 날짜 구분선은 **따로 한 칸**이다. 말풍선 칸 안에 같이 넣으면 뒤집힌
   // 목록에서 순서가 뒤바뀌어 말 아래에 떴다(2026-09-19). 뒤집혀 있으니
@@ -426,7 +436,7 @@ export default function Chat() {
           onEndReachedThreshold={0.2}
           // 뒤집힌 목록에서는 끝이 위다. 위로 올리면 옛 말을 더 불러온다.
           onEndReached={() => {
-            if (hasMore) void loadOlder()
+            if (canLoadOlder) void loadOlder()
           }}
           // 뒤집힌 목록에서는 머리가 아래, 꼬리가 위다. 더 없으면 안 보인다.
           ListFooterComponent={

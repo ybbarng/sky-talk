@@ -11,9 +11,11 @@ import {
 } from '@/domain/flight/FlightTimer'
 import { selectableCharacters } from '@/domain/peer/Character'
 import { Character } from '@/presentation/characters/Character'
+import { Button } from '@/presentation/components/Button'
 import { Card } from '@/presentation/components/Card'
 import { HelpTip } from '@/presentation/components/HelpTip'
 import { Icon } from '@/presentation/components/Icon'
+import { Sheet } from '@/presentation/components/Sheet'
 import { Text } from '@/presentation/components/Text'
 import { alertModeChoice } from '@/presentation/copy/onboarding'
 import { useChatStore } from '@/presentation/stores/useChatStore'
@@ -675,6 +677,10 @@ function TimeBox({
 }
 
 function ConversationSection() {
+  const theme = useTheme()
+  const clearConversationView = useSetupStore(s => s.clearConversationView)
+  const [confirming, setConfirming] = useState(false)
+
   return (
     <Section title="대화">
       <Row
@@ -689,6 +695,45 @@ function ConversationSection() {
         hint="꺼내둔 파일을 다시 넣어요"
         onPress={() => router.push('/export')}
       />
+      <Row
+        icon="alert"
+        label="대화 비우기"
+        hint="화면만 치워요. 상대 화면과 꺼내둔 파일에는 남아요"
+        onPress={() => setConfirming(true)}
+      />
+
+      {/*
+        **지우지 않고 감춘다.** 지우면 순번이 0으로 돌아가 다음 인사 때 상대가
+        전부 다시 보내 화면이 도로 채워진다. 그래서 이 시각 전의 말은 화면에서만
+        안 보이게 한다. 꺼내둔 파일에는 그대로 남는다.
+      */}
+      <Sheet
+        visible={confirming}
+        onClose={() => setConfirming(false)}
+        title="대화를 비울까요"
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          <Text color="textMuted">
+            지금까지의 말이 화면에서 사라져요. 상대 화면과 꺼내둔 파일에는 그대로 남고, 이
+            폰에서는 되돌릴 수 없어요.
+          </Text>
+          <Button
+            label="비우기"
+            tone="danger"
+            fullWidth
+            onPress={() => {
+              void clearConversationView(Date.now())
+              setConfirming(false)
+            }}
+          />
+          <Button
+            label="그만두기"
+            tone="ghost"
+            fullWidth
+            onPress={() => setConfirming(false)}
+          />
+        </View>
+      </Sheet>
     </Section>
   )
 }
