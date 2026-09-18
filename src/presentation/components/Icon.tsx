@@ -15,6 +15,8 @@ export type IconName =
   | 'help'
   | 'close'
   | 'send'
+  | 'play'
+  | 'stop'
   | 'mic'
   | 'micOff'
   | 'phone'
@@ -94,6 +96,12 @@ function renderPaths(name: IconName, p: PathProps) {
           <Path d="M21 3 14.5 21l-4-7.5L3 9.5 21 3Z" {...p} />
         </>
       )
+    case 'play':
+      // 오른쪽을 보는 세모. 음성 메시지를 튼다
+      return <Path d="M7 4.5v15l12-7.5L7 4.5Z" {...p} />
+    case 'stop':
+      // 네모. 듣는 것을 멈춘다
+      return <Path d="M6.5 6.5h11v11h-11z" {...p} />
     case 'photo':
       return (
         <>

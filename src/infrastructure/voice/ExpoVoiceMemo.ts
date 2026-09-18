@@ -206,7 +206,11 @@ export class ExpoVoicePlayer implements VoicePlayer {
         interruptionMode: 'mixWithOthers',
       })
 
-      const player = audio.module.createAudioPlayer({ uri: path })
+      // **확장자를 맞춰준다.** 받은 파일은 사진과 같은 창고에 `.jpg` 로 놓인다.
+      // 소리 재생기는 확장자로 형식을 고르므로 그대로는 못 튼다(2026-09-19,
+      // 받는 쪽에서 재생이 안 됐다). 한 번 `.m4a` 로 복사해 두고 그것을 튼다.
+      const playable = await withAudioExtension(path)
+      const player = audio.module.createAudioPlayer({ uri: playable })
 
       /**
        * 다 들으면 알린다.
@@ -303,5 +307,23 @@ function recorderClass(loaded: any): (new (options: unknown) => any) | null {
     return typeof fromInner === 'function' ? fromInner : null
   } catch {
     return null
+  }
+}
+
+/** `.m4a` 가 아니면 `.m4a` 로 복사한 자리를 돌려준다. 이미 있으면 그대로 */
+async function withAudioExtension(path: string): Promise<string> {
+  if (path.endsWith('.m4a')) return path
+
+  try {
+    const FileSystem = require('expo-file-system/legacy')
+    const target = `${path}.m4a`
+    const info = await FileSystem.getInfoAsync(target)
+    if (info?.exists !== true) {
+      await FileSystem.copyAsync({ from: path, to: target })
+    }
+    return target
+  } catch {
+    // 못 복사했다. 원래 것을 틀어본다. 안 되면 재생기가 실패를 알린다.
+    return path
   }
 }

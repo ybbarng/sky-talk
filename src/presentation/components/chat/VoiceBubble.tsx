@@ -67,7 +67,7 @@ export function VoiceBubble({
           backgroundColor: theme.colors.bg,
         }}
       >
-        <Icon name={playing ? 'alert' : 'send'} size={18} />
+        <Icon name={playing ? 'stop' : 'play'} size={18} />
       </View>
 
       <View style={{ flex: 1, gap: 3 }}>
