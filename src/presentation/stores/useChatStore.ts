@@ -612,6 +612,13 @@ export const useChatStore = create<ChatState>((set, get) => {
 
       await queue.run(refresh)
       set({ ready: true })
+
+      // **이미 이어져 있으면 지금 인사한다.** 설정에서 이름이나 캐릭터를 바꾸면
+      // 화면이 여기를 다시 부르는데, 인사를 안 하면 상대는 다음에 끊겼다
+      // 붙을 때까지 옛 이름을 본다. 실제로 그랬다(2026-09-19).
+      if (next.transport.currentState().isUsable()) {
+        void queue.run(greet)
+      }
     },
 
     async send(text) {
