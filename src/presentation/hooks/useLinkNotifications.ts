@@ -32,7 +32,7 @@ export interface LinkNotificationsInput {
   readonly enabled: boolean
   readonly role: Role
   readonly connected: boolean
-  readonly onOurNetwork: boolean | null
+  readonly bluetoothOn: boolean | null
   readonly everConnected: boolean
   readonly peerName: string | null
 }
@@ -60,7 +60,7 @@ export function useLinkNotifications(input: LinkNotificationsInput): void {
       const notice = decideNotice({
         role: now.role,
         connected: now.connected,
-        onOurNetwork: now.onOurNetwork,
+        bluetoothOn: now.bluetoothOn,
         downForMs: downSince.current === null ? 0 : Date.now() - downSince.current,
         appActive: AppState.currentState === 'active',
         everConnected: now.everConnected,

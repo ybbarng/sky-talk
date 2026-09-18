@@ -49,11 +49,10 @@ export const makePeerId = makePeerIdImpl
 
 export const settings = settingsImpl
 
+/** 블루투스가 켜져 있나. 꺼진 것은 사람이 켜야 풀리므로 화면이 알려준다 */
+export { readBluetooth } from '@/infrastructure/transport/ble/bluetoothState'
 /** 이만큼 지나도 상대를 못 찾으면 코드 입력을 권한다 */
 export { OFFER_MANUAL_AFTER_MS } from '@/infrastructure/transport/wifi/DiscoveryPlan'
-
-/** 지금 어느 망에 붙어 있나. 핫스팟이 꺼진 것을 알아채는 데 쓴다 */
-export { readNetwork } from '@/infrastructure/transport/wifi/NetworkInfo'
 
 /**
  * 영상을 그리는 것.

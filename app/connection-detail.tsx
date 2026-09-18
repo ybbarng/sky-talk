@@ -63,9 +63,11 @@ function Troubleshoot() {
   const theme = useTheme()
 
   const checks = [
-    '두 폰이 같은 Wi-Fi 에 있나요?',
     '두 폰 다 블루투스가 켜져 있나요?',
-    '비행기 모드에서도 Wi-Fi 는 따로 켜야 해요',
+    '비행기 모드에서도 블루투스는 따로 켤 수 있어요',
+    '두 폰이 몇 미터 안에 있나요? 벽이나 금속이 사이에 있으면 안 닿아요',
+    '상대 쪽 앱도 열려 있어야 해요',
+    '잠시 기다리면 앱이 스스로 다시 찾아요',
   ]
 
   return (
@@ -102,9 +104,9 @@ function linkText(state: ConnectionState | null): string {
 
   switch (state.link) {
     case 'wifi':
-      return 'Wi-Fi · 글·목소리·얼굴 전부 가능'
+      return 'Wi-Fi(집에서만) · 글·사진·목소리 전부'
     case 'ble':
-      return '블루투스 · 글만 가능'
+      return '블루투스 · 글과 이모티콘, 사진·음성은 작게 줄여서'
     case 'web':
       return '웹 · 글만 가능'
   }

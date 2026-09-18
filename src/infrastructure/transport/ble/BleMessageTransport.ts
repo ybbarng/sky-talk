@@ -193,7 +193,8 @@ export class BleMessageTransport implements MessageTransport {
           // 이미 멈췄다
         }
         await this.device?.cancelConnection?.()
-        this.manager?.destroy?.()
+        // 관리자는 부수지 않는다. 앱에 하나뿐이라 화면의 블루투스 상태
+        // 읽기(`bluetoothState.ts`)와 같은 것을 쓴다. 부수면 그쪽도 죽는다.
       }
     } catch {
       // 이미 끊겼다

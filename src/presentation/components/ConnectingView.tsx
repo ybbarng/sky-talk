@@ -132,22 +132,20 @@ function Breathing() {
 }
 
 /**
- * 설정 화면으로 데려다준다.
+ * 블루투스 설정으로 데려다준다.
  *
- * 앱이 핫스팟이나 Wi-Fi 를 대신 켜줄 수는 없다. 운영체제가 막아뒀다.
+ * 앱이 블루투스를 대신 켜줄 수는 없다. 운영체제가 막아뒀다.
  * 그래서 문 앞까지만 데려다준다. (docs/02-tech-decisions.md D10)
  */
 function openSettings(): void {
   if (Platform.OS === 'ios') {
-    void Linking.openURL('App-Prefs:root=WIFI').catch(() => {
+    void Linking.openURL('App-Prefs:root=Bluetooth').catch(() => {
       void Linking.openSettings()
     })
     return
   }
 
-  void Linking.sendIntent('android.settings.TETHER_SETTINGS').catch(() => {
-    void Linking.sendIntent('android.settings.WIRELESS_SETTINGS').catch(() => {
-      void Linking.openSettings()
-    })
+  void Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() => {
+    void Linking.openSettings()
   })
 }

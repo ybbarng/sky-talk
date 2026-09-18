@@ -227,9 +227,9 @@ function noticeText(notice: string): string {
     case 'link-restored':
       return '다시 연결됐어요'
     case 'switched-to-bluetooth':
-      return '블루투스로 바뀌었어요 · 지금은 글만 주고받을 수 있어요'
+      return '블루투스로 바뀌었어요 · 사진과 음성은 작게 줄여서 가요'
     case 'switched-to-wifi':
-      return 'Wi-Fi 로 바뀌었어요'
+      return 'Wi-Fi 로 바뀌었어요 · 사진과 목소리가 그대로 가요'
     case 'call-ended':
       return '통화가 끝났어요'
     case 'conversation-imported':

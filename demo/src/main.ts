@@ -173,7 +173,7 @@ function phaseOf(device: Device): ConnectPhase {
   return decidePhase({
     role: device.side,
     connection: device.connection,
-    onPrivateNetwork: onOurNetwork,
+    bluetoothOn: onOurNetwork,
     peerFound: false,
     everConnected: device.messages.length > 0,
   })

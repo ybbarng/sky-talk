@@ -8,11 +8,8 @@ import { asSubject } from './josa'
  * **폰을 주머니에 넣은 사람이 읽는다.** 화면을 보고 있지 않으니
  * 제목만 보고도 무엇을 해야 하는지 알아야 한다.
  *
- * 핫스팟이 꺼진 것은 **사람이 켜야 풀린다.** 그래서 "무슨 일이
+ * 블루투스가 꺼진 것은 **사람이 켜야 풀린다.** 그래서 "무슨 일이
  * 있었다" 가 아니라 "무엇을 눌러라" 로 적는다.
- *
- * 역할마다 할 일이 다르다. 여는 쪽은 핫스팟을 켜야 하고 붙는 쪽은
- * Wi-Fi 에 다시 들어가야 한다. 남의 할 일을 적어두면 찾다가 지친다.
  */
 
 export interface LinkAlert {
@@ -27,9 +24,7 @@ export interface LinkAlert {
  * 잠들어 있는 동안에는 상대 말이 안 들어오는 것이 사실이라, 열어보라고
  * 말하는 것까지는 맞다.
  *
- * 역할마다 확인할 것이 다르다. 여는 쪽은 핫스팟이 저 혼자 꺼졌을 수
- * 있고(안드로이드는 붙은 기기가 없으면 얼마 뒤 끈다), 붙는 쪽은
- * Wi-Fi 에서 밀려났을 수 있다.
+ * 블루투스가 꺼졌거나 앱이 잠든 것일 수 있다. 앱을 열면 다시 붙는다.
  */
 export function awayReminder(role: Role, peerName: string | null): LinkAlert {
   const who = asSubject(peerName === null || peerName.length === 0 ? '상대' : peerName)
@@ -56,7 +51,7 @@ export function alertFor(
     case 'none':
       return null
 
-    case 'hotspot-off':
+    case 'bluetooth-off':
       return role === 'host'
         ? {
             title: '블루투스가 꺼졌어요',

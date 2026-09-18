@@ -41,7 +41,7 @@ export function endMessage(reason: CallEndReason | null, peerName: string): stri
     case 'unanswered':
       return `${peerName}님이 못 받았어요. 글로 먼저 말을 걸어보세요.`
     case 'failed':
-      return '소리를 잇지 못했어요. 두 폰이 같은 Wi-Fi 에 있는지 확인해 주세요.'
+      return '소리를 잇지 못했어요. 통화는 집에서 Wi-Fi 로 이었을 때만 돼요.'
     case 'link-lost':
       return '연결이 끊겨 통화가 끝났어요. 글은 계속 주고받을 수 있어요.'
     case 'no-microphone':

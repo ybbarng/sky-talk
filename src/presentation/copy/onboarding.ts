@@ -140,7 +140,7 @@ export const welcome = {
 
 /** 왜 이 권한이 필요한지. 이유 없이 물으면 사람은 거절한다 */
 export const permissionReasons = {
-  nearby: '같은 Wi-Fi 에 있는 상대 폰을 찾으려면 필요해요.',
+  nearby: '가까이 있는 상대 폰을 블루투스로 찾으려면 필요해요.',
   microphone: '상대에게 목소리를 전하려면 필요해요.',
   notification: '메시지가 오면 알려드릴게요.',
 } as const

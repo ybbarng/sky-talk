@@ -48,7 +48,7 @@ function ConnectionSection() {
   return (
     <Section title="연결">
       <Row
-        icon="wifi"
+        icon="bluetooth"
         label="연결 상태 자세히"
         onPress={() => router.push('/connection-detail')}
       />

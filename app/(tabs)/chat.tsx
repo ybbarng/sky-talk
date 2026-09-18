@@ -30,16 +30,16 @@ import { Text } from '@/presentation/components/Text'
 import { myBatteryNote, peerBatteryNote } from '@/presentation/copy/battery'
 import { useAwayReminder } from '@/presentation/hooks/useAwayReminder'
 import { useBatteryWatch } from '@/presentation/hooks/useBatteryWatch'
+import { useBluetoothWatch } from '@/presentation/hooks/useBluetoothWatch'
 import { useKeepAwake } from '@/presentation/hooks/useKeepAwake'
 import { useKeepLinkAwake } from '@/presentation/hooks/useKeepLinkAwake'
 import { useLinkNotifications } from '@/presentation/hooks/useLinkNotifications'
 import { useMessageNotifications } from '@/presentation/hooks/useMessageNotifications'
-import { useNetworkWatch } from '@/presentation/hooks/useNetworkWatch'
 import { useReconnectOnForeground } from '@/presentation/hooks/useReconnectOnForeground'
 import { useStayAlive } from '@/presentation/hooks/useStayAlive'
 import { useVoiceAutoplay } from '@/presentation/hooks/useVoiceAutoplay'
 import { useWebFallback } from '@/presentation/hooks/useWebFallback'
-import { decidePhase, onOurNetwork } from '@/presentation/stores/connectPhase'
+import { decidePhase } from '@/presentation/stores/connectPhase'
 import { useCallStore } from '@/presentation/stores/useCallStore'
 import { useChatStore } from '@/presentation/stores/useChatStore'
 import { useSetupStore } from '@/presentation/stores/useSetupStore'
@@ -96,10 +96,10 @@ export default function Chat() {
   const preferences = useSetupStore(s => s.preferences)
   const [stickersOpen, setStickersOpen] = useState(false)
 
-  // 이어져 있는 동안은 지켜볼 필요가 없다. 핫스팟이 꺼지면 어차피 끊긴다.
+  // 이어져 있는 동안은 지켜볼 필요가 없다. 블루투스가 꺼지면 어차피 끊긴다.
   // 끊겼을 때만 보면서 **왜 끊겼는지**를 알아낸다.
   const connected = connection?.isUsable() ?? false
-  const network = useNetworkWatch(!connected)
+  const bluetooth = useBluetoothWatch(!connected)
 
   useEffect(() => {
     if (profile === null || me === null) return
@@ -204,13 +204,13 @@ export default function Chat() {
   // 끊긴 채로 오래 있으면 잠금 화면에 알린다.
   //
   // **주머니에 넣어두면 끊긴 줄도 모른다.** 그동안 상대는 내 말을
-  // 못 받는다. 특히 핫스팟이 꺼진 것은 사람이 켜야 풀리므로 더 빨리
+  // 못 받는다. 특히 블루투스가 꺼진 것은 사람이 켜야 풀리므로 더 빨리
   // 알린다. 이건 앱이 살아 있는 동안만 돈다. 잠든 뒤는 아래가 맡는다.
   useLinkNotifications({
     enabled: ready,
     role: profile?.role ?? 'host',
     connected,
-    onOurNetwork: onOurNetwork(profile?.role ?? 'host', network),
+    bluetoothOn: bluetooth.on,
     everConnected,
     peerName: peerName(peer, profile?.peerNickname),
   })
@@ -388,7 +388,7 @@ export default function Chat() {
                 phase={decidePhase({
                   role: profile.role,
                   connection,
-                  onPrivateNetwork: onOurNetwork(profile.role, network),
+                  bluetoothOn: bluetooth.on,
                   peerFound,
                   everConnected,
                 })}

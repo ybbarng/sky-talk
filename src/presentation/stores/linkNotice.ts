@@ -15,16 +15,16 @@ import type { Role } from '../copy/connecting'
  *
  * 그래서 한참 지나도 안 돌아올 때만 알린다.
  *
- * ## 왜 핫스팟만 따로 다루나
+ * ## 왜 블루투스가 꺼진 것만 따로 다루나
  *
- * 다른 이유로 끊긴 것은 앱이 알아서 다시 붙는다. 그런데 **핫스팟이
+ * 다른 이유로 끊긴 것은 앱이 알아서 다시 붙는다. 그런데 **블루투스가
  * 꺼진 것은 사람이 켜야 풀린다.** 아무리 기다려도 저절로 안 돌아온다.
  * 그래서 더 빨리, 더 세게 알리고 무엇을 눌러야 하는지 적는다.
- * (`connectPhase.ts` 도 같은 이유로 망을 먼저 본다)
+ * (`connectPhase.ts` 도 같은 이유로 블루투스를 먼저 본다)
  */
 
-/** 핫스팟이 꺼졌을 때. 사람이 켜야 하니 빨리 알린다 */
-export const HOTSPOT_OFF_AFTER_MS = 20_000
+/** 블루투스가 꺼졌을 때. 사람이 켜야 하니 빨리 알린다 */
+export const BLUETOOTH_OFF_AFTER_MS = 20_000
 
 /** 그 밖의 이유. 앱이 알아서 다시 붙을 시간을 준다 */
 export const LINK_LOST_AFTER_MS = 90_000
@@ -32,8 +32,8 @@ export const LINK_LOST_AFTER_MS = 90_000
 export type LinkNotice =
   /** 알릴 것이 없다 */
   | { readonly kind: 'none' }
-  /** 핫스팟이 꺼졌다. 켜야 풀린다 */
-  | { readonly kind: 'hotspot-off' }
+  /** 블루투스가 꺼졌다. 켜야 풀린다 */
+  | { readonly kind: 'bluetooth-off' }
   /** 한참 못 붙고 있다 */
   | { readonly kind: 'lost' }
   /** 다시 붙었다 */
@@ -43,12 +43,12 @@ export interface LinkWatch {
   readonly role: Role
   readonly connected: boolean
   /**
-   * 우리 망에 있나. 여는 쪽은 "내가 핫스팟을 켜고 있나" 다.
+   * 블루투스가 켜져 있나.
    *
    * 아직 못 읽었으면 `null`. **모르는 것을 "꺼졌다" 로 바꾸지 않는다.**
-   * 멀쩡한 사람에게 핫스팟을 켜라고 하면 무엇을 눌러야 할지 모른다.
+   * 멀쩡한 사람에게 켜라고 하면 무엇을 눌러야 할지 모른다.
    */
-  readonly onOurNetwork: boolean | null
+  readonly bluetoothOn: boolean | null
   /** 끊긴 지 얼마나 됐나. 붙어 있으면 0 */
   readonly downForMs: number
   /** 앱을 보고 있나. 보고 있으면 화면이 이미 말해준다 */
@@ -75,9 +75,9 @@ export function decideNotice(watch: LinkWatch): LinkNotice {
 
   // 사람이 켜야 풀리는 일은 더 빨리 알린다.
   // 아직 못 읽었으면(null) 그냥 끊긴 것으로 본다.
-  if (watch.onOurNetwork === false) {
-    return watch.downForMs >= HOTSPOT_OFF_AFTER_MS
-      ? { kind: 'hotspot-off' }
+  if (watch.bluetoothOn === false) {
+    return watch.downForMs >= BLUETOOTH_OFF_AFTER_MS
+      ? { kind: 'bluetooth-off' }
       : { kind: 'none' }
   }
 
