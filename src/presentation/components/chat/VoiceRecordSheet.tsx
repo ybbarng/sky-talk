@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Modal, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { narrowSeconds } from '@/application/assets/AssetChunks'
 import { vibration } from '@/composition/services'
 import { useTheme } from '../../theme/ThemeProvider'
 import { Icon } from '../Icon'
+import { Sheet } from '../Sheet'
 import { Text } from '../Text'
 
 /**
@@ -15,6 +16,9 @@ import { Text } from '../Text'
  * 고른다. 블루투스면 얼마나 걸릴지도 적는다.
  *
  * 길어야 20초다. 그 전에 저절로 끝난다.
+ *
+ * 창 자체는 `Sheet` 가 맡는다. 직접 `Modal` 을 만들었더니 안드로이드에서
+ * 자리가 어긋나고 단추가 안 눌렸다. `Sheet` 에 그 함정들이 다 적혀 있다.
  */
 interface VoiceRecordSheetProps {
   open: boolean
@@ -51,132 +55,107 @@ export function VoiceRecordSheet(props: VoiceRecordSheetProps) {
   const seconds = Math.floor(elapsed / 1000)
   const maxSeconds = Math.round(props.maxMs / 1000)
 
+  const title =
+    props.recorded !== null
+      ? '녹음했어요'
+      : props.recording
+        ? `녹음 중 · ${seconds}초`
+        : '음성 메시지'
+
   return (
-    <Modal
-      visible={props.open}
-      transparent
-      animationType="slide"
-      onRequestClose={props.onClose}
-    >
-      <Pressable
-        onPress={props.onClose}
-        accessibilityRole="button"
-        accessibilityLabel="녹음 창 닫기"
-        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.bg }}
-      >
-        <Pressable
-          onPress={() => undefined}
-          style={{
-            backgroundColor: theme.colors.surface,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            padding: theme.spacing.xl,
-            gap: theme.spacing.lg,
-            alignItems: 'center',
-          }}
-        >
-          <Text variant="heading">
-            {props.recorded !== null
-              ? '녹음했어요'
-              : props.recording
-                ? `녹음 중 · ${seconds}초`
-                : '음성 메시지'}
-          </Text>
+    <Sheet visible={props.open} onClose={props.onClose} title={title}>
+      <View style={{ alignItems: 'center', gap: theme.spacing.lg }}>
+        {props.recorded === null ? (
+          <>
+            <Pressable
+              onPress={() => {
+                if (props.recording) {
+                  props.onStop()
+                  return
+                }
+                // 시작했다는 것을 손끝으로 알린다. 화면만 보면 놓친다.
+                void vibration.talkReady()
+                props.onStart()
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={props.recording ? '녹음 끝내기' : '녹음 시작'}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: props.recording ? theme.colors.danger : theme.colors.me,
+              }}
+            >
+              <Icon
+                name="mic"
+                size={40}
+                color={props.recording ? 'onStatus' : 'meText'}
+              />
+            </Pressable>
 
-          {props.recorded === null ? (
-            <>
-              <Pressable
-                onPress={() => {
-                  if (props.recording) {
-                    props.onStop()
-                    return
-                  }
-                  // 시작했다는 것을 손끝으로 알린다. 화면만 보면 놓친다.
-                  void vibration.talkReady()
-                  props.onStart()
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={props.recording ? '녹음 끝내기' : '녹음 시작'}
-                style={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: 48,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: props.recording
-                    ? theme.colors.danger
-                    : theme.colors.me,
-                }}
-              >
-                <Icon
-                  name="mic"
-                  size={40}
-                  color={props.recording ? 'onStatus' : 'meText'}
-                />
-              </Pressable>
-
-              <Text variant="caption" color="textMuted" align="center">
-                {props.recording
-                  ? `다시 누르면 끝나요. ${maxSeconds}초가 되면 저절로 끝나요.`
-                  : `누르면 녹음이 시작돼요. 길어야 ${maxSeconds}초예요.`}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text color="textMuted" align="center">
-                {`${Math.max(1, Math.round(props.recorded.durationMs / 1000))}초`}
-                {props.narrow
-                  ? ` · 블루투스라 약 ${narrowSeconds(props.recorded.byteLength)}초 걸려요`
-                  : ''}
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: theme.spacing.sm,
-                  alignSelf: 'stretch',
-                }}
-              >
-                <Pressable
-                  onPress={props.onSend}
-                  accessibilityRole="button"
-                  style={{
-                    flex: 1,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: theme.colors.me,
-                    paddingVertical: theme.spacing.md,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text variant="label" style={{ color: theme.colors.meText }}>
-                    보내기
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={props.onDiscard}
-                  accessibilityRole="button"
-                  style={{
-                    flex: 1,
-                    borderRadius: theme.radius.md,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    paddingVertical: theme.spacing.md,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text variant="label">버리기</Text>
-                </Pressable>
-              </View>
-            </>
-          )}
-
-          {props.notice !== null && (
-            <Text variant="caption" color="danger" align="center">
-              {props.notice}
+            <Text variant="caption" color="textMuted" align="center">
+              {props.recording
+                ? `다시 누르면 끝나요. ${maxSeconds}초가 되면 저절로 끝나요.`
+                : `누르면 녹음이 시작돼요. 길어야 ${maxSeconds}초예요.`}
             </Text>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+          </>
+        ) : (
+          <>
+            <Text color="textMuted" align="center">
+              {`${Math.max(1, Math.round(props.recorded.durationMs / 1000))}초`}
+              {props.narrow
+                ? ` · 블루투스라 약 ${narrowSeconds(props.recorded.byteLength)}초 걸려요`
+                : ''}
+            </Text>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: theme.spacing.sm,
+                alignSelf: 'stretch',
+              }}
+            >
+              <Pressable
+                onPress={props.onSend}
+                accessibilityRole="button"
+                style={{
+                  flex: 1,
+                  borderRadius: theme.radius.md,
+                  backgroundColor: theme.colors.me,
+                  paddingVertical: theme.spacing.md,
+                  alignItems: 'center',
+                }}
+              >
+                <Text variant="label" style={{ color: theme.colors.meText }}>
+                  보내기
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={props.onDiscard}
+                accessibilityRole="button"
+                style={{
+                  flex: 1,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  paddingVertical: theme.spacing.md,
+                  alignItems: 'center',
+                }}
+              >
+                <Text variant="label">버리기</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        {props.notice !== null && (
+          <Text variant="caption" color="danger" align="center">
+            {props.notice}
+          </Text>
+        )}
+      </View>
+    </Sheet>
   )
 }
