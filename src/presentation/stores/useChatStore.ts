@@ -100,6 +100,8 @@ interface ChatState {
   announceDisconnect: boolean
   /** 상대를 찾았나 */
   peerFound: boolean
+  /** 마지막으로 이어져 있던 시각. 한 번도 안 이어졌으면 null */
+  lastLinkedAt: number | null
 
   start(deps: ChatDeps): Promise<void>
   send(text: string): Promise<void>
@@ -526,6 +528,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     everConnected: false,
     announceDisconnect: false,
     peerFound: false,
+    lastLinkedAt: null,
 
     async start(next) {
       deps = next
@@ -548,7 +551,11 @@ export const useChatStore = create<ChatState>((set, get) => {
           set({ assetProgress: { ...get().assetProgress, [only.assetId]: ratio } })
         }) ?? (() => undefined),
         next.transport.onStateChange(state => {
+          // 이어져 있다가 끊긴 순간을 적어둔다. 이름 밑에 "몇 분 전까지" 로 보인다.
+          const wasUsable = get().connection?.isUsable() === true
           set({ connection: state })
+          if (wasUsable && !state.isUsable())
+            set({ lastLinkedAt: systemClock.epochMillis() })
 
           if (state.isUsable()) {
             if (disconnectTimer !== null) clearTimeout(disconnectTimer)

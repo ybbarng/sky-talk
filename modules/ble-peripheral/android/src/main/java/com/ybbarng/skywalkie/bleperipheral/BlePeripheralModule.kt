@@ -286,6 +286,16 @@ class BlePeripheralModule : Module() {
     }
     server = opened
 
+    // **앱이 다시 켜졌는데 상대가 아직 붙어 있으면 한 번 떼어낸다.** 블루투스
+    // 링크는 앱이 죽어도 남는다. 상대(아이폰)는 이어져 있다고 믿고 다시 찾지
+    // 않는데, 새 서버에는 듣겠다고 한 적이 없어 안드로이드만 영영 기다린다
+    // (2026-09-19). 떼어내면 상대가 끊김을 보고 다시 찾아와 붙는다.
+    runCatching {
+      for (stale in manager.getConnectedDevices(BluetoothProfile.GATT_SERVER)) {
+        opened.cancelConnection(stale)
+      }
+    }
+
     opened.addService(buildService())
 
     val ble = bluetooth.bluetoothLeAdvertiser ?: run {

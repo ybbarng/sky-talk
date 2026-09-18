@@ -96,6 +96,7 @@ export default function Chat() {
   const everConnected = useChatStore(s => s.everConnected)
   const announceDisconnect = useChatStore(s => s.announceDisconnect)
   const peerFound = useChatStore(s => s.peerFound)
+  const lastLinkedAt = useChatStore(s => s.lastLinkedAt)
 
   const me = useMe(profile?.peerId)
   const listRef = useRef<FlatList<ChatRow>>(null)
@@ -396,6 +397,8 @@ export default function Chat() {
         typing={peerTyping}
         connected={connected}
         name={peerLabel(peer, profile?.peerNickname)}
+        peerBattery={peerBattery}
+        lastLinkedAt={lastLinkedAt}
       />
 
       <KeyboardAvoidingView
@@ -636,15 +639,30 @@ function PeerHeader({
   typing,
   connected,
   name,
+  peerBattery,
+  lastLinkedAt,
 }: {
   peerCharacter: Parameters<typeof Character>[0]['id']
   typing: boolean
   connected: boolean
   name: string
+  /** 상대 배터리. 0~1, 모르면 null */
+  peerBattery: number | null
+  /** 마지막으로 이어져 있던 시각 */
+  lastLinkedAt: number | null
 }) {
   const theme = useTheme()
 
   const expression = !connected ? 'disconnected' : typing ? 'typing' : 'idle'
+  const subtitle = typing
+    ? '입력 중...'
+    : connected
+      ? peerBattery === null
+        ? ''
+        : `배터리 ${Math.round(peerBattery * 100)}%`
+      : lastLinkedAt === null
+        ? '아직 못 이었어요'
+        : `${agoWords(Date.now() - lastLinkedAt)} 전까지 이어져 있었어요`
 
   return (
     <View
@@ -675,9 +693,16 @@ function PeerHeader({
             }}
           />
         </View>
-        <Text variant="caption" color="textMuted">
-          {!connected ? '연결을 기다리는 중' : typing ? '입력 중...' : '연결됨'}
-        </Text>
+        {/*
+          "연결됨" 은 옆의 점과 겹친다. 대신 쓸모 있는 것을 적는다.
+          보고 있으면 입력 중, 이어져 있으면 상대 배터리, 끊겼으면 언제까지
+          이어져 있었는지. 그래야 "잠깐 화장실 갔나" 를 가늠할 수 있다.
+        */}
+        {subtitle !== '' && (
+          <Text variant="caption" color="textMuted">
+            {subtitle}
+          </Text>
+        )}
       </View>
     </View>
   )
@@ -882,3 +907,12 @@ type ChatRow =
       readonly index: number
     }
   | { readonly kind: 'day'; readonly key: string; readonly at: Date }
+
+/** 얼마나 지났나를 사람이 읽는 말로. "3분", "2시간" */
+function agoWords(ms: number): string {
+  const minutes = Math.floor(ms / 60_000)
+  if (minutes < 1) return '방금'
+  if (minutes < 60) return `${minutes}분`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}시간`
+}
