@@ -136,9 +136,9 @@ export default function Chat() {
         // 통화 봉투는 통화 쪽으로 넘긴다
         onCallSignal: payload => useCallStore.getState().handleSignal(payload),
         // 상대가 남은 시간을 정했다. **내 시계로 다시 센다.**
-        onFlightShared: remaining => {
+        onFlightShared: (remaining, total) => {
           const timer = startFlight(remaining, Date.now())
-          void setFlight(timer?.arrivesAt ?? null, timer === null ? null : remaining)
+          void setFlight(timer?.arrivesAt ?? null, timer === null ? null : total)
         },
       })
 

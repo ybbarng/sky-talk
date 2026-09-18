@@ -385,7 +385,7 @@ override fun onHeadlessJsTaskStart(taskId: Int) {
 | `asset_chunk` | 사진 조각 (2단계) | — |
 | `asset_complete` | 다 보냈다 + 검증값 (2단계) | — |
 | `presence` | 지금 뭐 듣는지, 배터리 등 | — |
-| `flight` | 도착까지 **남은 시간** | — |
+| `flight` | 도착까지 **남은 시간** (+ 비행 전체 길이) | — |
 | `call_signal` | 통화 협상 정보 | — |
 | `sync_request` | 놓친 것 달라 | `sync_response` |
 | `sync_response` | 놓친 것 여기 | — |
@@ -396,11 +396,16 @@ override fun onHeadlessJsTaskStart(taskId: Int) {
 도착 **시각**을 보내면 두 폰의 시간대가 다를 때 어긋난다. 비행은 시간대를
 넘는 일이 잦고, 아이폰은 기내에서 시간대를 알아서 바꾸기도 한다.
 
-그래서 `flight` 은 `remainingMs` 하나만 담는다. 받은 쪽이 **자기 시계로**
+그래서 `flight` 은 `remainingMs` 를 담는다. 받은 쪽이 **자기 시계로**
 도착 시각을 다시 센다. 오차는 봉투가 건너오는 시간뿐이라 1초를 넘지 않는데,
 화면에는 분 단위만 보여주므로 보이지도 않는다.
 
-`remainingMs` 가 0 이면 끈 것이다. 양쪽에서 막대가 치워진다.
+`totalMs` 는 비행이 통째로 얼마나 긴가다. 출발·도착 시각으로 잡으면 남은 것보다
+길어서, 진행 막대의 출발점을 이걸로 맞춘다. 그래야 양쪽 화면의 비행기 위치가 같다.
+**없으면 남은 것을 총 길이로 본다.** 예전 앱이 보낸 봉투가 그렇다.
+
+`remainingMs` 가 0 이면 끈 것이다. 양쪽에서 막대가 치워진다. 그때는 `totalMs` 를
+싣지 않는다.
 
 ### 순번을 쓰는 이유
 

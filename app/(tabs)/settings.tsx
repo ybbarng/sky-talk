@@ -3,7 +3,12 @@ import { useState } from 'react'
 import { Platform, Pressable, ScrollView, Switch, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { Preferences } from '@/composition/services'
-import { fromHoursAndMinutes, startFlight } from '@/domain/flight/FlightTimer'
+import {
+  fromDepartureAndArrival,
+  fromHoursAndMinutes,
+  minuteOfDay,
+  startFlight,
+} from '@/domain/flight/FlightTimer'
 import { selectableCharacters } from '@/domain/peer/Character'
 import { Character } from '@/presentation/characters/Character'
 import { Card } from '@/presentation/components/Card'
@@ -456,10 +461,14 @@ function Toggle({
 }
 
 /**
- * 목적지까지 남은 시간.
+ * 비행 시간.
  *
  * **한 번 넣으면 둘 다 같은 것을 본다.** 정하는 순간 상대에게
  * 건너가고, 그때부터 각자의 폰이 알아서 줄여 나간다.
+ *
+ * 탑승권의 출발·도착 시각을 그대로 넣는 것이 기본이다. 그래야 이륙한
+ * 지 한참 뒤에 넣어도 비행기가 지금 있는 자리에 그려진다. 남은 시간만
+ * 아는 사람을 위해 예전 방식도 아래에 접어둔다.
  */
 function FlightSection() {
   const theme = useTheme()
@@ -467,28 +476,64 @@ function FlightSection() {
   const setFlight = useSetupStore(s => s.setFlight)
   const shareFlight = useChatStore(s => s.shareFlight)
 
+  const [departHours, setDepartHours] = useState('')
+  const [departMinutes, setDepartMinutes] = useState('')
+  const [arriveHours, setArriveHours] = useState('')
+  const [arriveMinutes, setArriveMinutes] = useState('')
+
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
+  const [remainingOpen, setRemainingOpen] = useState(false)
 
   const running = preferences.arrivesAt !== undefined
 
-  function apply(): void {
-    const total = fromHoursAndMinutes(Number(hours || '0'), Number(minutes || '0'))
-    if (total === null) return
-
-    const timer = startFlight(total, Date.now())
+  /** 남은 것과 총 길이를 정해 내 화면에 띄우고 상대에게도 알린다 */
+  function start(remainingMs: number, totalMs: number): void {
+    const timer = startFlight(remainingMs, Date.now())
     if (timer === null) return
 
-    void setFlight(timer.arrivesAt, total)
+    void setFlight(timer.arrivesAt, totalMs)
     // 상대도 같은 것을 보게 알린다
-    void shareFlight(total)
+    void shareFlight(remainingMs, totalMs)
 
+    setDepartHours('')
+    setDepartMinutes('')
+    setArriveHours('')
+    setArriveMinutes('')
     setHours('')
     setMinutes('')
   }
 
+  function applySchedule(): void {
+    const depart = minuteOfDay(Number(departHours || '0'), Number(departMinutes || '0'))
+    const arrive = minuteOfDay(Number(arriveHours || '0'), Number(arriveMinutes || '0'))
+    if (depart === null || arrive === null) return
+
+    // 지금 시각도 같은 시계(이 폰의 현지 시각)로 읽는다
+    const now = new Date()
+    const span = fromDepartureAndArrival({
+      departMinutes: depart,
+      arriveMinutes: arrive,
+      nowMinutes: now.getHours() * 60 + now.getMinutes(),
+    })
+    if (span === null) return
+
+    start(span.remainingMs, span.totalMs)
+  }
+
+  function applyRemaining(): void {
+    const total = fromHoursAndMinutes(Number(hours || '0'), Number(minutes || '0'))
+    if (total === null) return
+
+    start(total, total)
+  }
+
+  const scheduleFilled =
+    departHours.length + departMinutes.length > 0 &&
+    arriveHours.length + arriveMinutes.length > 0
+
   return (
-    <Section title="남은 비행 시간">
+    <Section title="비행 시간">
       {running ? (
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" color="textMuted">
@@ -514,34 +559,115 @@ function FlightSection() {
       ) : (
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" color="textMuted">
-            앞으로 얼마나 남았는지 넣어주세요. 상대 화면에도 같이 떠요.
+            탑승권에 적힌 출발·도착 시각을 넣어주세요. 이미 이륙했어도 비행기가 지금
+            자리에 그려져요. 상대 화면에도 같이 떠요.
+          </Text>
+          <Text variant="caption" color="textMuted">
+            시차가 있는 비행이면 둘 다 출발지 시각으로 넣어주세요.
           </Text>
 
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
-          >
-            <TimeBox value={hours} onChange={setHours} unit="시간" />
-            <TimeBox value={minutes} onChange={setMinutes} unit="분" />
+          <ClockRow
+            label="출발"
+            hours={departHours}
+            minutes={departMinutes}
+            onHours={setDepartHours}
+            onMinutes={setDepartMinutes}
+          />
+          <ClockRow
+            label="도착"
+            hours={arriveHours}
+            minutes={arriveMinutes}
+            onHours={setArriveHours}
+            onMinutes={setArriveMinutes}
+          />
 
-            <Pressable
-              onPress={apply}
-              accessibilityRole="button"
+          <Pressable
+            onPress={applySchedule}
+            disabled={!scheduleFilled}
+            accessibilityRole="button"
+            style={{
+              borderRadius: theme.radius.md,
+              backgroundColor: theme.colors.me,
+              paddingVertical: theme.spacing.md,
+              alignItems: 'center',
+              opacity: scheduleFilled ? 1 : 0.5,
+            }}
+          >
+            <Text variant="label" style={{ color: theme.colors.meText }}>
+              맞추기
+            </Text>
+          </Pressable>
+
+          {/* 남은 시간만 아는 사람을 위한 길. 접어둔다 */}
+          <Pressable
+            onPress={() => setRemainingOpen(open => !open)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: remainingOpen }}
+          >
+            <Text variant="caption" color="textMuted">
+              {remainingOpen
+                ? '▾ 남은 시간만 넣기'
+                : '▸ 출발 시각을 모르면 남은 시간만 넣어도 돼요'}
+            </Text>
+          </Pressable>
+
+          {remainingOpen && (
+            <View
               style={{
-                flex: 1,
-                borderRadius: theme.radius.md,
-                backgroundColor: theme.colors.me,
-                paddingVertical: theme.spacing.md,
+                flexDirection: 'row',
                 alignItems: 'center',
+                gap: theme.spacing.sm,
               }}
             >
-              <Text variant="label" style={{ color: theme.colors.meText }}>
-                맞추기
-              </Text>
-            </Pressable>
-          </View>
+              <TimeBox value={hours} onChange={setHours} unit="시간" />
+              <TimeBox value={minutes} onChange={setMinutes} unit="분" />
+
+              <Pressable
+                onPress={applyRemaining}
+                accessibilityRole="button"
+                style={{
+                  flex: 1,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  paddingVertical: theme.spacing.md,
+                  alignItems: 'center',
+                }}
+              >
+                <Text variant="label">남은 시간으로 맞추기</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       )}
     </Section>
+  )
+}
+
+/** 시:분 한 줄. 출발이나 도착 시각을 받는다 */
+function ClockRow({
+  label,
+  hours,
+  minutes,
+  onHours,
+  onMinutes,
+}: {
+  label: string
+  hours: string
+  minutes: string
+  onHours(next: string): void
+  onMinutes(next: string): void
+}) {
+  const theme = useTheme()
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+      <Text variant="bodyStrong" style={{ minWidth: 36 }}>
+        {label}
+      </Text>
+      <TimeBox value={hours} onChange={onHours} unit="시" />
+      <TimeBox value={minutes} onChange={onMinutes} unit="분" />
+    </View>
   )
 }
 
