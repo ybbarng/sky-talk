@@ -83,8 +83,16 @@ class BlePeripheralModule : Module() {
   /** 듣고 있는 상대들 */
   private val listeners = mutableListOf<BluetoothDevice>()
 
-  /** 보낼 자리가 없어 밀려난 것들. 자리가 나면 여기부터 보낸다 */
+  /**
+   * 보낼 자리가 없어 밀려난 것들. 자리가 나면 여기부터 보낸다.
+   *
+   * **두 스레드가 건드린다.** JS 가 조각을 넣는 스레드와 `onNotificationSent`
+   * 가 오는 바인더 스레드다. 잠금 없이 둘이 같이 비우면 하나가 보낸 조각을
+   * 다른 쪽이 또 보내고, **아직 안 보낸 조각을 지워버린다.** 사진 하나에
+   * 조각이 수백 개라 하나만 빠져도 통째로 못 모인다(2026-09-19 실제로 그랬다).
+   */
   private val backlog = ArrayDeque<ByteArray>()
+  private val lock = Any()
 
   private var mtu = DEFAULT_MTU
   private var advertising = false
@@ -178,7 +186,7 @@ class BlePeripheralModule : Module() {
           emitSubscribe(true, usableBytes())
         } else {
           listeners.removeAll { it.address == device.address }
-          if (listeners.isEmpty()) backlog.clear()
+          if (listeners.isEmpty()) synchronized(lock) { backlog.clear() }
           emitSubscribe(false, 0)
         }
       }
@@ -237,7 +245,7 @@ class BlePeripheralModule : Module() {
     }
 
     /** 아직 안 나간 조각 수. JS 가 사진 조각을 밀어 넣는 속도를 여기에 맞춘다 */
-    Function("queued") { backlog.size }
+    Function("queued") { synchronized(lock) { backlog.size } }
 
     Function("isAdvertising") { advertising }
   }
@@ -365,7 +373,7 @@ class BlePeripheralModule : Module() {
     server = null
     outbox = null
     listeners.clear()
-    backlog.clear()
+    synchronized(lock) { backlog.clear() }
     mtu = DEFAULT_MTU
     advertising = false
     return true
@@ -383,12 +391,14 @@ class BlePeripheralModule : Module() {
   private fun sendChunk(base64: String): Boolean {
     if (outbox == null) return false
     if (listeners.isEmpty()) return false
-    if (backlog.size >= MAX_BACKLOG) return false
 
     val data = runCatching { Base64.decode(base64, Base64.NO_WRAP) }.getOrNull() ?: return false
 
-    // 밀린 것이 있으면 순서를 지킨다. 새것을 먼저 보내면 말이 뒤엉킨다.
-    backlog.addLast(data)
+    synchronized(lock) {
+      if (backlog.size >= MAX_BACKLOG) return false
+      // 밀린 것이 있으면 순서를 지킨다. 새것을 먼저 보내면 말이 뒤엉킨다.
+      backlog.addLast(data)
+    }
     flush()
     return true
   }
@@ -398,10 +408,13 @@ class BlePeripheralModule : Module() {
     val out = outbox ?: return false
     if (listeners.isEmpty()) return false
 
-    while (backlog.isNotEmpty()) {
-      val next = backlog.first()
-      if (!notify(out, next)) return false
-      backlog.removeFirst()
+    // 잠근 채로 보낸다. 보내는 일은 빨라서(전송이 아니라 줄에 넣는 것) 괜찮다.
+    synchronized(lock) {
+      while (backlog.isNotEmpty()) {
+        val next = backlog.first()
+        if (!notify(out, next)) return false
+        backlog.removeFirst()
+      }
     }
 
     return true

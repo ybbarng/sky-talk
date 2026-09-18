@@ -284,6 +284,44 @@ export const useChatStore = create<ChatState>((set, get) => {
       messages: [...page.value.messages],
       hasMore: page.value.hasMore,
     })
+
+    await trackAssets(page.value.messages)
+  }
+
+  /**
+   * 사진·음성이 달린 메시지마다 파일이 있는지 본다.
+   *
+   * 있으면 바로 보여주고, **없으면 조각을 기다리기 시작한다.** 이걸 안
+   * 하면 조각이 와도 "모르는 사진" 으로 버려져 영영 "기다리는 중" 이다
+   * (2026-09-19 실제로 그랬다). 앱을 껐다 켜도 마찬가지라 불러올 때마다 본다.
+   */
+  async function trackAssets(messages: readonly Message[]): Promise<void> {
+    const active = deps
+    if (active === null) return
+
+    for (const message of messages) {
+      const content = message.content
+      if (content.kind !== 'photo' && content.kind !== 'voice') continue
+      if (get().assetPaths[content.assetId] !== undefined) continue
+
+      if (await active.assets.exists(content.assetId)) {
+        set({
+          assetPaths: {
+            ...get().assetPaths,
+            [content.assetId]: active.assets.pathOf(content.assetId),
+          },
+        })
+        continue
+      }
+
+      // 내 것인데 파일이 없으면 보내다 죽은 것이다. 상대에게 달라고 할 수 없다.
+      if (message.isMine(active.me)) continue
+
+      assetReceiver(active)?.expect(content.assetId, content.byteLength)
+      if (get().assetProgress[content.assetId] === undefined) {
+        set({ assetProgress: { ...get().assetProgress, [content.assetId]: 0 } })
+      }
+    }
   }
 
   function syncOf(active: ChatDeps): ConversationSync {
@@ -329,6 +367,8 @@ export const useChatStore = create<ChatState>((set, get) => {
         set({ peerId: outcome.value.peer.peerId })
         deps.onPeerKnown?.(outcome.value.peer)
       }
+      // 끊긴 동안 못 받은 사진 조각을 달라고 한다
+      await assetReceiver(deps)?.requestMissing()
       return
     }
 
@@ -339,6 +379,8 @@ export const useChatStore = create<ChatState>((set, get) => {
         displayName: envelope.p.displayName,
         character: envelope.p.character,
       })
+      // 끊긴 동안 못 받은 사진 조각을 달라고 한다. 처음부터 다시 받지 않는다.
+      await assetReceiver(deps)?.requestMissing()
       return
     }
 
@@ -723,6 +765,11 @@ export const useChatStore = create<ChatState>((set, get) => {
             : await active.picker.pickFromLibrary()
 
         if (!picked.ok || picked.value === null) return
+
+        // 고르는 동안만 잠근다. 보내는 동안까지 잠그면 사진을 하나씩만 보낼 수
+        // 있는데, 블루투스에서는 한 장에 몇십 초라 답답하다. 여러 장을 같이
+        // 보내도 조각마다 사진 번호가 있어 섞이지 않는다.
+        set({ sendingPhoto: false })
 
         const conversation = get().conversation
         if (conversation === null) return
