@@ -7,7 +7,7 @@ import {
   systemContent,
   textContent,
 } from '@/domain/message/MessageContent'
-import { notificationBody, worthNotifying } from './notify'
+import { notificationBody, reactionTo, worthNotifying } from './notify'
 
 /**
  * 잠금 화면에 뜨는 글.
@@ -92,5 +92,65 @@ describe('띄울 만한가', () => {
     expect(worthNotifying(must(textContent('안녕')))).toBe(true)
     expect(worthNotifying(nudgeContent())).toBe(true)
     expect(worthNotifying(must(stickerContent('aria', 'heart')))).toBe(true)
+  })
+})
+
+describe('새 말이 왔을 때 무엇을 하나', () => {
+  const watching = { active: true, tapWhileWatching: true, nudgeVibration: true }
+  const away = { active: false, tapWhileWatching: true, nudgeVibration: true }
+
+  it('콕 찌르기는 보고 있어도 떤다', () => {
+    // 말 없이 "자니?" 하는 것이라 진동이 곧 내용이다
+    expect(reactionTo(nudgeContent(), watching)).toEqual({
+      vibrate: 'nudge',
+      notify: false,
+    })
+  })
+
+  it('콕 찌르기는 안 보고 있으면 떨고 잠금 화면에도 띄운다', () => {
+    expect(reactionTo(nudgeContent(), away)).toEqual({ vibrate: 'nudge', notify: true })
+  })
+
+  it('콕 찌르기 진동을 꺼두면 안 떤다', () => {
+    // 거슬리는 사람도 있다. 잠금 화면 알림은 그대로라 놓치지는 않는다
+    expect(reactionTo(nudgeContent(), { ...watching, nudgeVibration: false })).toEqual({
+      vibrate: null,
+      notify: false,
+    })
+    expect(reactionTo(nudgeContent(), { ...away, nudgeVibration: false })).toEqual({
+      vibrate: null,
+      notify: true,
+    })
+  })
+
+  it('보고 있을 때 온 글은 짧게 떨고 알림은 안 띄운다', () => {
+    expect(reactionTo(must(textContent('안녕')), watching)).toEqual({
+      vibrate: 'tap',
+      notify: false,
+    })
+  })
+
+  it('보고 있을 때 떨기를 꺼두면 글에는 아무것도 안 한다', () => {
+    expect(
+      reactionTo(must(textContent('안녕')), { ...watching, tapWhileWatching: false }),
+    ).toEqual({ vibrate: null, notify: false })
+  })
+
+  it('안 보고 있을 때 온 글은 잠금 화면에 띄운다', () => {
+    expect(reactionTo(must(textContent('안녕')), away)).toEqual({
+      vibrate: null,
+      notify: true,
+    })
+  })
+
+  it('앱이 끼워 넣은 알림에는 아무것도 안 한다', () => {
+    expect(reactionTo(systemContent('link-lost'), away)).toEqual({
+      vibrate: null,
+      notify: false,
+    })
+    expect(reactionTo(systemContent('link-lost'), watching)).toEqual({
+      vibrate: null,
+      notify: false,
+    })
   })
 })

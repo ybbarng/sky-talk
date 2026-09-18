@@ -38,6 +38,7 @@ describe('예전 설정 읽기', () => {
 
     expect(parsed.alertMode).toBe('vibrate')
     expect(parsed.tapWhileWatching).toBe(true)
+    expect(parsed.nudgeVibration).toBe(true)
   })
 
   it('보고 있을 때 떠는 것과 안 보고 있을 때 알리는 것은 따로 정한다', () => {

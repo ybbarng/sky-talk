@@ -55,6 +55,13 @@ export const preferencesSchema = z.object({
    */
   tapWhileWatching: z.boolean().default(true),
   /**
+   * 상대가 콕 찌르면 떨까.
+   *
+   * 콕 찌르기는 **말 없이 부르는 것**이라 진동이 곧 내용이다. 그래서
+   * 보고 있든 안 보고 있든 떤다. 그래도 거슬리면 끌 수 있어야 한다.
+   */
+  nudgeVibration: z.boolean().default(true),
+  /**
    * 대화 화면을 보고 있을 때 음성 메시지를 저절로 틀까.
    *
    * 켜두면 사실상 무전기가 된다. 상대가 말하면 바로 들리고 나는
@@ -100,6 +107,8 @@ export const defaultPreferences: Preferences = {
   alertMode: 'vibrate',
   // 설정 화면이나 통화 화면에 있으면 새 말이 온 줄 모른다
   tapWhileWatching: true,
+  // 콕 찌르기는 진동이 곧 내용이다
+  nudgeVibration: true,
   // 무전기처럼 쓰는 것이 이 앱의 이름값이다
   autoPlayVoice: true,
   // 배터리를 먹는다. 연결이 자꾸 끊길 때만 켠다
