@@ -25,6 +25,7 @@ import { MessageBubble } from '@/presentation/components/chat/MessageBubble'
 import { MessageInput } from '@/presentation/components/chat/MessageInput'
 import { StickerPanel } from '@/presentation/components/chat/StickerPanel'
 import { TypingIndicator } from '@/presentation/components/chat/TypingIndicator'
+import { showsTime } from '@/presentation/components/chat/timeMarks'
 import { Icon } from '@/presentation/components/Icon'
 import { Text } from '@/presentation/components/Text'
 import { myBatteryNote, peerBatteryNote } from '@/presentation/copy/battery'
@@ -288,7 +289,12 @@ export default function Chat() {
       const previous = messages[index - 1]
       const next = messages[index + 1]
       const grouped = previous !== undefined && previous.author === item.author
-      const showTime = next === undefined || next.author !== item.author
+      const showTime = showsTime(
+        { author: item.author, at: item.orderedAt().getTime() },
+        next === undefined
+          ? undefined
+          : { author: next.author, at: next.orderedAt().getTime() },
+      )
 
       // 날이 바뀌면 사이에 날짜를 넣는다. 비행기가 날짜선을 넘거나
       // 밤 비행이면 어제 말과 오늘 말이 붙어 버린다.
