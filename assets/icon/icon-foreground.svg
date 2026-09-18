@@ -1,52 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    안드로이드 앞면. 뒷면(밤하늘) 위에 얹힌다.
-
-    폰마다 아이콘 모양(동그라미·네모·물방울)이 달라 시스템이 잘라낸다.
-    그래서 봉투와 실링을 가운데 66% 안전 영역 안에 둔다.
-    (docs/07-design-system.md 7장)
+    안드로이드 앞면. 뒷면(밤하늘) 위에 얹힌다. 폰마다 아이콘 모양이 달라
+    시스템이 잘라내므로 비행기를 가운데 72% 안에 둔다.
   -->
   <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF9D5C"/>
+      <stop offset="100%" stop-color="#D9661F"/>
+    </linearGradient>
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B85418"/>
+      <stop offset="100%" stop-color="#8F3E0E"/>
+    </linearGradient>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FFF6EA"/>
       <stop offset="100%" stop-color="#EEDFC8"/>
     </linearGradient>
-    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F7EAD6"/>
-      <stop offset="100%" stop-color="#E3D0B4"/>
-    </linearGradient>
-    <radialGradient id="wax" gradientUnits="userSpaceOnUse" cx="60" cy="-60" r="300">
-      <stop offset="0%" stop-color="#FF9D5C"/>
-      <stop offset="60%" stop-color="#E0702A"/>
-      <stop offset="100%" stop-color="#B85418"/>
+    <radialGradient id="glow">
+      <stop offset="0%" stop-color="#FFF6EA" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#FFF6EA" stop-opacity="0"/>
     </radialGradient>
+    <clipPath id="fuse">
+      <path d="M 170 560 Q 170 520 210 520 L 740 520 C 850 520 935 570 968 610 C 935 650 850 700 740 700 L 300 700 C 240 700 190 675 170 640 Z"/>
+    </clipPath>
   </defs>
-
-  <!-- 봉투 몸통 -->
-  <rect x="202" y="302" width="620" height="420" rx="28" fill="url(#paper)"/>
-  <path d="M216 712 L512 520 L808 712" fill="none" stroke="#C9B18F" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
-  <!-- 뚜껑 -->
-  <path d="M202 330 Q202 302 230 302 L794 302 Q822 302 822 330 L512 584 Z" fill="url(#flap)"/>
-  <path d="M206 324 L512 584 L818 324" fill="none" stroke="#B9A07C" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
-  <!-- 봉투 위에 실링처럼 얹은 여객기. 위에서 본 모습이고 코가 오른쪽을 향한다. 봉투 가로 가운데, 세로 55% 자리 -->
-  <g transform="translate(519 532) scale(0.9) translate(4 6)" fill="#0B1020" opacity="0.22" stroke="#0B1020" stroke-width="10" stroke-linejoin="round">
-    <!-- 동체: 코가 둥글고 꼬리로 갈수록 가늘어진다 -->
-    <path d="M180 0 C180 -14 168 -24 150 -24 L20 -24 C-40 -24 -120 -16 -178 -8 C-186 -6 -186 6 -178 8 C-120 16 -40 24 20 24 L150 24 C168 24 180 14 180 0 Z"/>
-    <!-- 주날개 한 쌍. 뒤로 살짝 젖혔다 -->
-    <path d="M62 -16 L-70 -168 L-114 -168 L-34 -16 Z"/>
-    <path d="M62 16 L-70 168 L-114 168 L-34 16 Z"/>
-    <!-- 꼬리날개 한 쌍 -->
-    <path d="M-124 -8 L-172 -74 L-198 -74 L-160 -8 Z"/>
-    <path d="M-124 8 L-172 74 L-198 74 L-160 8 Z"/>
+  <g transform="translate(512 512) scale(0.72) translate(-512 -560)">
+  <!-- 켜진 창문 뒤 빛 -->
+  <circle cx="390" cy="604" r="120" fill="url(#glow)"/>
+  <circle cx="702" cy="604" r="120" fill="url(#glow)"/>
+  <!-- 꼬리 날개 -->
+  <path d="M 230 660 L 120 740 L 215 740 L 320 660 Z" fill="#B85418"/>
+  <path d="M 205 525 L 90 340 L 195 340 L 340 525 Z" fill="url(#paper)"/>
+  <!-- 동체 -->
+  <path d="M 170 560 Q 170 520 210 520 L 740 520 C 850 520 935 570 968 610 C 935 650 850 700 740 700 L 300 700 C 240 700 190 675 170 640 Z" fill="url(#body)"/>
+  <rect x="150" y="662" width="840" height="60" fill="url(#belly)" clip-path="url(#fuse)"/>
+  <!-- 조종석 창 -->
+  <path d="M 846 548 L 882 548 C 915 560 940 585 952 606 L 846 606 Z" fill="#0B1020"/>
+  <!-- 창문 줄 -->
+  <g fill="#0B1020">
+    <rect x="320" y="580" width="36" height="48" rx="12"/>
+    <rect x="424" y="580" width="36" height="48" rx="12"/>
+    <rect x="476" y="580" width="36" height="48" rx="12"/>
+    <rect x="528" y="580" width="36" height="48" rx="12"/>
+    <rect x="580" y="580" width="36" height="48" rx="12"/>
+    <rect x="632" y="580" width="36" height="48" rx="12"/>
+    <rect x="736" y="580" width="36" height="48" rx="12"/>
   </g>
-  <g transform="translate(519 532) scale(0.9)" fill="url(#wax)" stroke="url(#wax)" stroke-width="10" stroke-linejoin="round">
-    <!-- 동체: 코가 둥글고 꼬리로 갈수록 가늘어진다 -->
-    <path d="M180 0 C180 -14 168 -24 150 -24 L20 -24 C-40 -24 -120 -16 -178 -8 C-186 -6 -186 6 -178 8 C-120 16 -40 24 20 24 L150 24 C168 24 180 14 180 0 Z"/>
-    <!-- 주날개 한 쌍. 뒤로 살짝 젖혔다 -->
-    <path d="M62 -16 L-70 -168 L-114 -168 L-34 -16 Z"/>
-    <path d="M62 16 L-70 168 L-114 168 L-34 16 Z"/>
-    <!-- 꼬리날개 한 쌍 -->
-    <path d="M-124 -8 L-172 -74 L-198 -74 L-160 -8 Z"/>
-    <path d="M-124 8 L-172 74 L-198 74 L-160 8 Z"/>
+  <!-- 켜진 창문 둘. 여기서 저기로 말이 건너간다 -->
+  <rect x="372" y="580" width="36" height="48" rx="12" fill="#FFF6EA"/>
+  <rect x="684" y="580" width="36" height="48" rx="12" fill="#FFF6EA"/>
+  <!-- 주날개와 엔진 -->
+  <path d="M 600 690 L 410 850 Q 430 870 500 870 L 770 690 Z" fill="#B85418"/>
+  <ellipse cx="590" cy="822" rx="66" ry="32" fill="url(#paper)"/>
+  <!-- 봉투가 지나온 길 -->
+  <path d="M 390 570 C 380 260 712 260 702 570" fill="none" stroke="#FFF6EA" stroke-width="12" stroke-opacity="0.75" stroke-dasharray="6 30" stroke-linecap="round"/>
+  <!-- 날아가는 봉투 -->
+  <g transform="translate(546 330) rotate(-10)">
+    <rect x="-80" y="-56" width="160" height="112" rx="16" fill="url(#paper)"/>
+    <path d="M -80 -44 L 0 20 L 80 -44" fill="none" stroke="#B9A07C" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M -76 52 L -20 6 M 76 52 L 20 6" fill="none" stroke="#C9B18F" stroke-width="10" stroke-linecap="round"/>
+  </g>
   </g>
 </svg>
