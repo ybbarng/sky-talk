@@ -1,18 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- 앱을 열 때 잠깐 뜨는 그림. 바탕은 앱 설정이 칠한다 -->
+  <!-- 앱을 열 때 잠깐 뜨는 그림. 바탕은 앱 설정이 칠한다. 앞면과 같은 봉투다 -->
   <defs>
-    <linearGradient id="wingLeft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFC08C"/>
-      <stop offset="100%" stop-color="#FF9D5C"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6EA"/>
+      <stop offset="100%" stop-color="#EEDFC8"/>
     </linearGradient>
-    <linearGradient id="wingRight" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F08234"/>
-      <stop offset="100%" stop-color="#D4661F"/>
+    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F7EAD6"/>
+      <stop offset="100%" stop-color="#E3D0B4"/>
     </linearGradient>
+    <radialGradient id="wax" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0%" stop-color="#FF9D5C"/>
+      <stop offset="70%" stop-color="#E0702A"/>
+      <stop offset="100%" stop-color="#B85418"/>
+    </radialGradient>
   </defs>
-  <g>
-    <path d="M256 140 L256 312 L178 350 Z" fill="url(#wingLeft)"/>
-    <path d="M256 140 L334 350 L256 312 Z" fill="url(#wingRight)"/>
-    <path d="M256 140 L256 312" stroke="#0B1020" stroke-width="4" opacity="0.28"/>
+  <g transform="scale(0.5)">
+    <rect x="202" y="302" width="620" height="420" rx="28" fill="url(#paper)"/>
+    <path d="M216 712 L512 520 L808 712" fill="none" stroke="#C9B18F" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M202 330 Q202 302 230 302 L794 302 Q822 302 822 330 L512 584 Z" fill="url(#flap)"/>
+    <path d="M206 324 L512 584 L818 324" fill="none" stroke="#B9A07C" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="512" cy="580" r="106" fill="#0B1020" opacity="0.22"/>
+    <circle cx="512" cy="572" r="100" fill="url(#wax)"/>
+    <circle cx="512" cy="572" r="84" fill="none" stroke="#FFF3E4" stroke-width="5" opacity="0.35"/>
+    <g transform="translate(512 572) rotate(45)">
+      <path d="M0 -68 L0 43 L-52 70 Z" fill="#FFF3E4"/>
+      <path d="M0 -68 L52 70 L0 43 Z" fill="#FFD9BC"/>
+      <path d="M0 -68 L0 43" stroke="#B85418" stroke-width="5" opacity="0.5"/>
+    </g>
   </g>
 </svg>
