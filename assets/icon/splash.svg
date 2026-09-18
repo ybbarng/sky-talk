@@ -9,9 +9,9 @@
       <stop offset="0%" stop-color="#F7EAD6"/>
       <stop offset="100%" stop-color="#E3D0B4"/>
     </linearGradient>
-    <radialGradient id="wax" cx="0.4" cy="0.35" r="0.75">
+    <radialGradient id="wax" gradientUnits="userSpaceOnUse" cx="60" cy="-60" r="300">
       <stop offset="0%" stop-color="#FF9D5C"/>
-      <stop offset="70%" stop-color="#E0702A"/>
+      <stop offset="60%" stop-color="#E0702A"/>
       <stop offset="100%" stop-color="#B85418"/>
     </radialGradient>
   </defs>
@@ -20,9 +20,26 @@
     <path d="M216 712 L512 520 L808 712" fill="none" stroke="#C9B18F" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
     <path d="M202 330 Q202 302 230 302 L794 302 Q822 302 822 330 L512 584 Z" fill="url(#flap)"/>
     <path d="M206 324 L512 584 L818 324" fill="none" stroke="#B9A07C" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
-    <g transform="translate(512 560) rotate(90) scale(1.5)">
-      <path d="M0 -82 C14 -82 22 -62 22 -40 L22 -14 L80 26 L80 42 L22 22 L22 50 L44 68 L44 82 L10 74 L0 84 L-10 74 L-44 82 L-44 68 L-22 50 L-22 22 L-80 42 L-80 26 L-22 -14 L-22 -40 C-22 -62 -14 -82 0 -82 Z" fill="#0B1020" opacity="0.28" transform="translate(5 5)"/>
-      <path d="M0 -82 C14 -82 22 -62 22 -40 L22 -14 L80 26 L80 42 L22 22 L22 50 L44 68 L44 82 L10 74 L0 84 L-10 74 L-44 82 L-44 68 L-22 50 L-22 22 L-80 42 L-80 26 L-22 -14 L-22 -40 C-22 -62 -14 -82 0 -82 Z" fill="url(#wax)"/>
+    <!-- 봉투 위에 실링처럼 얹은 여객기. 위에서 본 모습이고 코가 오른쪽을 향한다. 봉투 가로 가운데, 세로 55% 자리 -->
+    <g transform="translate(519 532) scale(0.9) translate(4 6)" fill="#0B1020" opacity="0.22" stroke="#0B1020" stroke-width="10" stroke-linejoin="round">
+      <!-- 동체: 코가 둥글고 꼬리로 갈수록 가늘어진다 -->
+      <path d="M180 0 C180 -14 168 -24 150 -24 L20 -24 C-40 -24 -120 -16 -178 -8 C-186 -6 -186 6 -178 8 C-120 16 -40 24 20 24 L150 24 C168 24 180 14 180 0 Z"/>
+      <!-- 주날개 한 쌍. 뒤로 살짝 젖혔다 -->
+      <path d="M62 -16 L-70 -168 L-114 -168 L-34 -16 Z"/>
+      <path d="M62 16 L-70 168 L-114 168 L-34 16 Z"/>
+      <!-- 꼬리날개 한 쌍 -->
+      <path d="M-124 -8 L-172 -74 L-198 -74 L-160 -8 Z"/>
+      <path d="M-124 8 L-172 74 L-198 74 L-160 8 Z"/>
+    </g>
+    <g transform="translate(519 532) scale(0.9)" fill="url(#wax)" stroke="url(#wax)" stroke-width="10" stroke-linejoin="round">
+      <!-- 동체: 코가 둥글고 꼬리로 갈수록 가늘어진다 -->
+      <path d="M180 0 C180 -14 168 -24 150 -24 L20 -24 C-40 -24 -120 -16 -178 -8 C-186 -6 -186 6 -178 8 C-120 16 -40 24 20 24 L150 24 C168 24 180 14 180 0 Z"/>
+      <!-- 주날개 한 쌍. 뒤로 살짝 젖혔다 -->
+      <path d="M62 -16 L-70 -168 L-114 -168 L-34 -16 Z"/>
+      <path d="M62 16 L-70 168 L-114 168 L-34 16 Z"/>
+      <!-- 꼬리날개 한 쌍 -->
+      <path d="M-124 -8 L-172 -74 L-198 -74 L-160 -8 Z"/>
+      <path d="M-124 8 L-172 74 L-198 74 L-160 8 Z"/>
     </g>
   </g>
 </svg>
