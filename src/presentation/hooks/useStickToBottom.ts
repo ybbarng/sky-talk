@@ -8,68 +8,32 @@ import type {
 import { isNearBottom } from '../components/chat/listBottom'
 
 /**
- * 대화 목록을 바닥에 붙여둔다.
+ * 대화 목록을 바닥에 붙여둔다. **목록은 뒤집혀 있다.**
  *
- * ## 왜 마지막 말이 잘렸나
+ * 뒤집힌 목록에서는 바닥이 곧 0 이다. 그래서 도구 줄이 펼쳐지거나
+ * 키보드가 올라와 목록이 짧아져도 보던 아래쪽이 그대로 따라오고, 새 말은
+ * 바닥(0)에 있을 때만 보인다. 위로 올려 옛 말을 읽는 중이면 그 자리가
+ * 그대로다. 예전에는 위에서부터 그리고 매번 끝으로 내렸는데, 그림이 든
+ * 말풍선과 도구 줄 여닫기가 겹치면 조금씩 못 미쳐 마지막 말이 잘렸다.
  *
- * 전에는 내용 크기가 바뀔 때 한 번만 끝으로 내렸다. 두 가지가 빠졌다.
- *
- *   · **목록 자체의 키가 줄 때.** 도구 줄이 펼쳐지거나 이모티콘 서랍이
- *     열리면 목록이 그만큼 짧아지는데, 내용은 그대로라 아무 일도 안
- *     일어났다. 그래서 마지막 말의 아랫부분이 가려졌다.
- *   · **그림이 든 말풍선.** 이모티콘과 사진은 한 프레임 뒤에 키가
- *     확정된다. 첫 번째 끝내리기가 그 전에 돌아서 조금 못 미쳤다.
- *
- * 그래서 목록의 키가 바뀔 때도 내리고, 한 프레임 뒤에 한 번 더 내린다.
- *
- * ## 옛 말을 보고 있으면 안 끌어내린다
- *
- * 바닥 근처에 있을 때만 따라 내려간다. 위로 올려 옛 말을 읽는 중에
- * 새 말이 왔다고 끌어내리면 읽던 자리를 잃는다. **내가 보낸 말은
- * 예외다.** 어디를 보고 있었든 내가 쓴 말은 보여야 한다.
+ * **내가 보낸 말은 예외다.** 어디를 보고 있었든 내가 쓴 말은 보여야 한다.
  */
 export function useStickToBottom<T>(listRef: RefObject<FlatList<T> | null>) {
   const pinned = useRef(true)
-  /** 마지막으로 본 목록의 키. 키가 바뀐 직후의 스크롤 신호는 사람이 한 것이 아니다 */
-  const viewport = useRef<number | null>(null)
 
   const scrollToEnd = useCallback(() => {
-    listRef.current?.scrollToEnd({ animated: false })
-
-    // 그림이 든 말풍선은 한 프레임 뒤에 키가 확정된다. 한 번 더 내린다.
-    requestAnimationFrame(() => {
-      if (pinned.current) listRef.current?.scrollToEnd({ animated: false })
-    })
+    listRef.current?.scrollToOffset({ offset: 0, animated: false })
   }, [listRef])
-
-  const follow = useCallback(() => {
-    if (pinned.current) scrollToEnd()
-  }, [scrollToEnd])
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-
-    // **목록의 키가 바뀐 직후의 신호는 건너뛴다.** 도구 줄을 펼치면 목록이
-    // 짧아지는데, 그 순간 바닥까지의 거리가 갑자기 늘어 "위로 올렸다" 고
-    // 잘못 보고 끝으로 안 내려갔다. 사람이 손으로 올린 것만 센다.
-    if (viewport.current !== layoutMeasurement.height) {
-      viewport.current = layoutMeasurement.height
-      return
-    }
-
+    // 뒤집힌 목록이라 0 이 바닥이다. 내용·화면 크기는 볼 필요가 없다.
     pinned.current = isNearBottom(
-      contentOffset.y,
+      contentSize.height - layoutMeasurement.height - contentOffset.y,
       contentSize.height,
       layoutMeasurement.height,
     )
   }, [])
-
-  const onLayout = useCallback(
-    (_event: LayoutChangeEvent) => {
-      follow()
-    },
-    [follow],
-  )
 
   /** 내가 보냈다. 어디를 보고 있었든 내려간다 */
   const pin = useCallback(() => {
@@ -77,12 +41,15 @@ export function useStickToBottom<T>(listRef: RefObject<FlatList<T> | null>) {
     scrollToEnd()
   }, [scrollToEnd])
 
+  const onLayout = useCallback((_event: LayoutChangeEvent) => {
+    // 뒤집힌 목록은 키가 바뀌어도 바닥이 그대로다. 할 일이 없다.
+  }, [])
+
   return {
     onScroll,
-    onContentSizeChange: follow,
+    onContentSizeChange: () => undefined,
     onLayout,
     pin,
-    /** 바닥 근처인지 제때 알려면 이 정도는 받아야 한다 */
     scrollEventThrottle: 16,
   }
 }

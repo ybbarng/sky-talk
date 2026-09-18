@@ -1,6 +1,6 @@
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AppState,
   FlatList,
@@ -297,12 +297,18 @@ export default function Chat() {
     void markVisibleAsRead()
   }, [ready, appActive, unread, markVisibleAsRead])
 
+  // **목록은 뒤집어 그린다.** 가장 새 말이 0번이고 화면 아래에 붙는다. 그래서
+  // 도구 줄이나 키보드로 목록 키가 바뀌어도 보던 아래쪽이 그대로 따라오고,
+  // 새 말은 바닥에 있을 때만 보인다. 위로 올려 옛 말을 읽는 중이면 안 움직인다.
+  const ordered = useMemo(() => [...messages].reverse(), [messages])
+
   const renderItem = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
       if (me === null) return null
 
-      const previous = messages[index - 1]
-      const next = messages[index + 1]
+      // 뒤집혀 있으니 다음 칸이 더 옛날 말이다
+      const previous = ordered[index + 1]
+      const next = ordered[index - 1]
       const grouped = previous !== undefined && previous.author === item.author
       const showTime = showsTime(
         { author: item.author, at: item.orderedAt().getTime() },
@@ -340,7 +346,7 @@ export default function Chat() {
         </>
       )
     },
-    [me, messages, assetPaths, assetProgress, playingVoice, playVoice, stopVoice],
+    [me, ordered, assetPaths, assetProgress, playingVoice, playVoice, stopVoice],
   )
 
   if (profile === null || me === null) {
@@ -390,17 +396,17 @@ export default function Chat() {
       >
         <FlatList
           ref={listRef}
-          data={messages}
+          data={ordered}
+          inverted
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.lg,
             paddingBottom: theme.spacing.lg,
-            flexGrow: 1,
-            justifyContent: 'flex-end',
           }}
           onEndReachedThreshold={0.2}
-          ListHeaderComponent={<LoadMore onPress={() => void loadOlder()} />}
+          // 뒤집힌 목록에서는 머리가 아래, 꼬리가 위다
+          ListFooterComponent={<LoadMore onPress={() => void loadOlder()} />}
           ListEmptyComponent={
             connected ? (
               <EmptyState />
@@ -420,7 +426,7 @@ export default function Chat() {
               />
             )
           }
-          ListFooterComponent={peerTyping ? <TypingIndicator /> : null}
+          ListHeaderComponent={peerTyping ? <TypingIndicator /> : null}
           onScroll={bottom.onScroll}
           scrollEventThrottle={bottom.scrollEventThrottle}
           onContentSizeChange={bottom.onContentSizeChange}
