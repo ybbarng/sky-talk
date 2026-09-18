@@ -7,6 +7,7 @@ import { useTheme } from '../../theme/ThemeProvider'
 import { DoodleRenderer } from '../doodle/DoodleRenderer'
 import { Icon } from '../Icon'
 import { Text } from '../Text'
+import { BUBBLE_MAX_WIDTH } from './bubbleLayout'
 import { DeliveryMark } from './DeliveryMark'
 import { PhotoBubble } from './PhotoBubble'
 import { VoiceBubble } from './VoiceBubble'
@@ -69,7 +70,7 @@ export function MessageBubble({
     <View
       style={{
         alignSelf: mine ? 'flex-end' : 'flex-start',
-        maxWidth: '82%',
+        maxWidth: BUBBLE_MAX_WIDTH,
         marginTop: grouped ? theme.spacing.xs : theme.spacing.md,
       }}
     >
