@@ -84,8 +84,10 @@ function NameSection() {
   const profile = useSetupStore(s => s.profile)
   const setDisplayName = useSetupStore(s => s.setDisplayName)
   const setPeerNickname = useSetupStore(s => s.setPeerNickname)
+  const setStatusMessage = useSetupStore(s => s.setStatusMessage)
 
   const [name, setName] = useState(profile?.displayName ?? '')
+  const [status, setStatus] = useState(profile?.statusMessage ?? '')
   const [calling, setCalling] = useState(profile?.peerNickname ?? '')
 
   return (
@@ -105,6 +107,14 @@ function NameSection() {
           }
           void setDisplayName(trimmed)
         }}
+      />
+
+      <NameField
+        label="상태 메시지"
+        hint="상대 화면의 내 이름 옆에 늘 떠 있어요. 영화 보는 중, 자는 중 같은 것. 비워도 돼요."
+        value={status}
+        onChange={setStatus}
+        onDone={() => void setStatusMessage(status)}
       />
 
       <NameField

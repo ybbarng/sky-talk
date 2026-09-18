@@ -34,6 +34,8 @@ interface SetupState {
   ensureProfile(): Promise<void>
   chooseCharacter(character: CharacterId): Promise<void>
   setDisplayName(displayName: string): Promise<void>
+  /** 상대 화면에 늘 떠 있는 한마디를 정한다. 비우면 지운다 */
+  setStatusMessage(text: string): Promise<void>
   /** 상대를 뭐라고 부를지. 비우면 "상대" 로 쓴다 */
   setPeerNickname(nickname: string): Promise<void>
   chooseAudioMode(audioMode: Preferences['audioMode']): Promise<void>
@@ -98,6 +100,16 @@ export const useSetupStore = create<SetupState>((set, get) => ({
     const current = get().profile
     if (current === null) return
     await persistProfile(set, { ...current, character })
+  },
+
+  async setStatusMessage(text) {
+    const current = get().profile
+    if (current === null) return
+    const trimmed = text.trim()
+    await persistProfile(set, {
+      ...current,
+      ...(trimmed.length > 0 ? { statusMessage: trimmed } : { statusMessage: undefined }),
+    })
   },
 
   async setDisplayName(displayName) {

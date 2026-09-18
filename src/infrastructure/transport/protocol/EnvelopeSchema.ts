@@ -98,6 +98,7 @@ const helloPayload = z.object({
   peerId: z.string().min(8).max(64),
   displayName: z.string().min(1).max(20),
   character: z.enum(characterIds),
+  status: z.string().max(60).optional(),
   lastSeenSeq: z.number().int().min(0),
   appVersion: z.string().min(1).max(32),
 })

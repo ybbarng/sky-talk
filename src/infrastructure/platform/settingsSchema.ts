@@ -23,6 +23,8 @@ export const profileSchema = z.object({
   // 예전 설정에는 여섯 자리 코드(pairingCode)가 남아 있다. 모르는 값은 버리고 읽는다.
   /** 핫스팟을 연 쪽인가 붙는 쪽인가 */
   role: z.enum(['host', 'guest']),
+  /** 상대 화면에 늘 떠 있는 한마디. "영화 보는 중" 같은 것 */
+  statusMessage: z.string().max(60).optional(),
   /**
    * 상대를 내가 뭐라고 부르는가. "여자친구" 같은 것.
    *
@@ -37,6 +39,8 @@ export const peerSchema = z.object({
   peerId: z.string().min(8).max(64),
   displayName: z.string().min(1).max(20),
   character: z.enum(characterIds),
+  /** 상대가 정한 한마디. 인사에 실려 온다 */
+  status: z.string().max(60).optional(),
 })
 
 export const preferencesSchema = z.object({

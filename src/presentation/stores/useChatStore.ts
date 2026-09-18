@@ -155,6 +155,8 @@ export interface ChatDeps {
   readonly profile: {
     readonly displayName: string
     readonly character: CharacterId
+    /** 상대 화면에 늘 떠 있는 한마디 */
+    readonly status?: string
     readonly appVersion: string
   }
   /** 상대가 비행 시간을 정했다. 남은 것은 내 시계로 다시 센다 */
@@ -164,6 +166,7 @@ export interface ChatDeps {
     peerId: string
     displayName: string
     character: CharacterId
+    status?: string
   }): void
   /**
    * 통화 봉투가 오면 넘긴다.
@@ -353,6 +356,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       me: active.me,
       displayName: active.profile.displayName,
       character: active.profile.character,
+      ...(active.profile.status === undefined ? {} : { status: active.profile.status }),
       appVersion: active.profile.appVersion,
       conversation,
       peerId: get().peerId ?? undefined,
@@ -372,6 +376,7 @@ export const useChatStore = create<ChatState>((set, get) => {
         me: deps.me,
         displayName: deps.profile.displayName,
         character: deps.profile.character,
+        ...(deps.profile.status === undefined ? {} : { status: deps.profile.status }),
         appVersion: deps.profile.appVersion,
         conversation,
         hello: envelope.p,
@@ -392,6 +397,7 @@ export const useChatStore = create<ChatState>((set, get) => {
         peerId: envelope.p.peerId,
         displayName: envelope.p.displayName,
         character: envelope.p.character,
+        ...(envelope.p.status === undefined ? {} : { status: envelope.p.status }),
       })
       // 끊긴 동안 못 받은 사진 조각을 달라고 한다. 처음부터 다시 받지 않는다.
       await assetReceiver(deps)?.requestMissing()

@@ -30,6 +30,8 @@ export interface HelloPayload {
   readonly peerId: string
   readonly displayName: string
   readonly character: CharacterId
+  /** 상대 화면에 늘 떠 있는 한마디. 없을 수 있다(예전 앱) */
+  readonly status?: string
   /** 내가 상대에게서 마지막으로 받은 순번. 놓친 걸 바로 알아채려고 알려준다 */
   readonly lastSeenSeq: number
   readonly appVersion: string

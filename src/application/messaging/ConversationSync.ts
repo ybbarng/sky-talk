@@ -58,6 +58,7 @@ export class ConversationSync {
         peerId: input.me,
         displayName: input.displayName,
         character: input.character,
+        ...(input.status === undefined ? {} : { status: input.status }),
         lastSeenSeq,
         appVersion: input.appVersion,
       },
@@ -83,6 +84,7 @@ export class ConversationSync {
         peerId: input.me,
         displayName: input.displayName,
         character: input.character,
+        ...(input.status === undefined ? {} : { status: input.status }),
         lastSeenSeq: input.conversation.highestSeqFrom(theirs.value),
         appVersion: input.appVersion,
       },
@@ -108,6 +110,7 @@ export class ConversationSync {
         peerId: input.hello.peerId,
         displayName: input.hello.displayName,
         character: input.hello.character,
+        ...(input.hello.status === undefined ? {} : { status: input.hello.status }),
       },
       requestedSeqs: requested,
       resent,
@@ -302,6 +305,8 @@ export interface GreetInput {
   readonly me: string
   readonly displayName: string
   readonly character: CharacterId
+  /** 상대 화면에 늘 떠 있는 한마디 */
+  readonly status?: string
   readonly appVersion: string
   readonly conversation: Conversation
   /** 상대 식별자. 아직 모르면 없다 */

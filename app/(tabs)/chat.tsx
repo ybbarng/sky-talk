@@ -142,6 +142,9 @@ export default function Chat() {
         profile: {
           displayName: profile.displayName,
           character: profile.character,
+          ...(profile.statusMessage === undefined
+            ? {}
+            : { status: profile.statusMessage }),
           appVersion: APP_VERSION,
         },
         // 상대를 알게 되면 기억해 둔다. 다음에 켤 때 이름과 캐릭터가 바로 뜬다.
@@ -399,6 +402,7 @@ export default function Chat() {
         name={peerLabel(peer, profile?.peerNickname)}
         peerBattery={peerBattery}
         lastLinkedAt={lastLinkedAt}
+        status={peer?.status ?? null}
       />
 
       <KeyboardAvoidingView
@@ -641,6 +645,7 @@ function PeerHeader({
   name,
   peerBattery,
   lastLinkedAt,
+  status,
 }: {
   peerCharacter: Parameters<typeof Character>[0]['id']
   typing: boolean
@@ -650,6 +655,8 @@ function PeerHeader({
   peerBattery: number | null
   /** 마지막으로 이어져 있던 시각 */
   lastLinkedAt: number | null
+  /** 상대가 정한 한마디. 없으면 null */
+  status: string | null
 }) {
   const theme = useTheme()
 
@@ -704,6 +711,23 @@ function PeerHeader({
           </Text>
         )}
       </View>
+
+      {/* 상대가 정한 한마디. 오른쪽 빈자리에 늘 떠 있다. 인사 때 실려 온다 */}
+      {status !== null && status.length > 0 && (
+        <View
+          style={{
+            maxWidth: '45%',
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: theme.spacing.md,
+            paddingVertical: 6,
+          }}
+        >
+          <Text variant="caption" color="textMuted" numberOfLines={2}>
+            {status}
+          </Text>
+        </View>
+      )}
     </View>
   )
 }
