@@ -54,6 +54,18 @@ describe('여러 길을 하나처럼', () => {
     expect(composite.kind).toBe('ble')
   })
 
+  it('이미 이어져 있으면 다시 열어도 그대로 이어져 있다', async () => {
+    // 이름을 바꾸면 화면이 다시 연다. 그때 찾는 중으로 돌아가면 안 된다.
+    await composite.connect()
+    const states: string[] = []
+    composite.onStateChange(state => states.push(state.phase))
+
+    await composite.connect()
+
+    expect(composite.currentState().isUsable()).toBe(true)
+    expect(states).toEqual([])
+  })
+
   it('전부 안 되면 실패를 알린다', async () => {
     wifi.failConnect = true
     ble.failConnect = true

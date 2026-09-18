@@ -69,6 +69,11 @@ export class CompositeTransport implements MessageTransport {
    */
   async connect(): Promise<Result<void, DomainError>> {
     return this.queue.run(async () => {
+      // **이미 이어져 있으면 건드리지 않는다.** 설정에서 이름을 바꾸면 화면이
+      // 여기를 다시 부르는데, 그때마다 "찾는 중" 으로 돌아가 Wi-Fi 찾기가
+      // 끝날 때까지 몇십 초 동안 끊긴 것처럼 보였다(2026-09-19).
+      if (this.state.isUsable()) return ok(undefined)
+
       const searching = this.state.startSearching()
       if (searching.ok) this.setState(searching.value)
 
