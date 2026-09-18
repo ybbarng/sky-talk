@@ -73,6 +73,9 @@ interface ChatState {
    * 알려주고 **사용자가 고른 뒤에** 보낸다.
    */
   pendingVoice: { readonly byteLength: number; readonly durationMs: number } | null
+  /** 녹음이 안 됐을 때 왜 안 됐는지. 화면이 잠깐 띄운다 */
+  voiceNotice: string | null
+  clearVoiceNotice(): void
   /** 지금 듣고 있는 음성의 번호. 아무것도 아니면 null */
   playingVoice: string | null
   /**
@@ -513,6 +516,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     sendingPhoto: false,
     recording: false,
     pendingVoice: null,
+    voiceNotice: null,
     playingVoice: null,
     peerBattery: null,
     pendingCount: 0,
@@ -838,8 +842,12 @@ export const useChatStore = create<ChatState>((set, get) => {
       if (active === null || get().recording) return
 
       const started = await active.recorder.start()
-      if (!started.ok) return
-      set({ recording: true })
+      if (!started.ok) {
+        // 조용히 넘어가면 마이크를 눌러도 아무 반응이 없다. 무엇이 안 되는지 적는다.
+        set({ voiceNotice: started.error.detail })
+        return
+      }
+      set({ recording: true, voiceNotice: null })
 
       // **길어야 20초.** 블루투스로 10초에 40KB 라 그 이상은 몇 분이 걸린다.
       // 손을 안 떼도 여기서 끊어 보낸다.
@@ -859,23 +867,20 @@ export const useChatStore = create<ChatState>((set, get) => {
       set({ recording: false })
 
       const recorded = await active.recorder.stop()
-      // 너무 짧거나 못 읽었다. 조용히 넘어간다.
-      if (!recorded.ok) return
-
-      // **블루투스면 바로 안 보낸다.** 좁은 길이라 10초 녹음이 15초쯤
-      // 걸린다. 얼마나 걸릴지 알려주고 사용자가 고른 뒤에 보낸다.
-      if (get().connection?.link === 'ble') {
-        heldVoice = recorded.value
-        set({
-          pendingVoice: {
-            byteLength: recorded.value.byteLength,
-            durationMs: recorded.value.durationMs,
-          },
-        })
+      if (!recorded.ok) {
+        set({ voiceNotice: recorded.error.detail })
         return
       }
 
-      await sendRecorded(recorded.value)
+      // **바로 안 보낸다.** 녹음 창에서 들어보고 보낼지 고른다. 블루투스면
+      // 얼마나 걸릴지도 거기서 보인다.
+      heldVoice = recorded.value
+      set({
+        pendingVoice: {
+          byteLength: recorded.value.byteLength,
+          durationMs: recorded.value.durationMs,
+        },
+      })
     },
 
     async sendPendingVoice() {
@@ -889,6 +894,10 @@ export const useChatStore = create<ChatState>((set, get) => {
     discardPendingVoice() {
       heldVoice = null
       set({ pendingVoice: null })
+    },
+
+    clearVoiceNotice() {
+      set({ voiceNotice: null })
     },
 
     async cancelRecording() {

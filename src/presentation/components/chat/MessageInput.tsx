@@ -16,12 +16,8 @@ interface MessageInputProps {
   onPhoto?(): void
   /** 길게 누르면 카메라를 연다. 지금 찍어 보낼 때 */
   onCamera?(): void
-  /** 꾹 누르는 동안 녹음한다 */
-  onRecordStart?(): void
-  onRecordStop?(): void
-  onRecordCancel?(): void
-  /** 지금 녹음 중인가 */
-  recording?: boolean
+  /** 마이크를 누르면 녹음 창을 연다 */
+  onRecord?(): void
   /** 끊겨 있으면 알려준다. 입력을 막지는 않는다 */
   offline?: boolean
 }
@@ -57,10 +53,7 @@ export function MessageInput({
   onStickers,
   onPhoto,
   onCamera,
-  onRecordStart,
-  onRecordStop,
-  onRecordCancel,
-  recording = false,
+  onRecord,
   offline = false,
 }: MessageInputProps) {
   const theme = useTheme()
@@ -97,18 +90,6 @@ export function MessageInput({
         gap: theme.spacing.xs,
       }}
     >
-      {recording && (
-        <Pressable
-          onPress={onRecordCancel}
-          accessibilityRole="button"
-          style={{ paddingHorizontal: theme.spacing.sm }}
-        >
-          <Text variant="caption" color="danger">
-            녹음 중… 손을 떼면 보내져요. 20초가 되면 저절로 끝나요. 여기를 누르면 버려요.
-          </Text>
-        </Pressable>
-      )}
-
       {offline && (
         <Text
           variant="caption"
@@ -164,11 +145,11 @@ export function MessageInput({
           자리를 하나만 쓰는 이유는 좁아서다. 글을 쓰다 말고 녹음할
           일은 없으니 둘이 겹쳐도 헷갈리지 않는다.
 
-          녹음은 **꾹 누르는 동안만** 된다. 손을 떼면 바로 나간다.
-          눌러서 켜고 다시 눌러 끄는 방식은 켜둔 줄 모르고 있다가
-          엉뚱한 소리가 통째로 건너간다.
+          마이크를 누르면 녹음 창이 열린다. 누르고 있는 동안만 녹음하던
+          방식은 눌렸는지 알 수가 없어서 바꿨다. 창에서 시작하고 끝내고
+          보낼지 고른다.
         */}
-        {canSend || onRecordStart === undefined ? (
+        {canSend || onRecord === undefined ? (
           <Pressable
             onPress={submit}
             disabled={!canSend}
@@ -188,23 +169,20 @@ export function MessageInput({
           </Pressable>
         ) : (
           <Pressable
-            onPressIn={onRecordStart}
-            onPressOut={onRecordStop}
+            onPress={onRecord}
             accessibilityRole="button"
             accessibilityLabel="음성 메시지"
-            accessibilityHint="꾹 누르고 말한 뒤 손을 떼면 보내져요"
+            accessibilityHint="누르면 녹음 창이 열려요"
             style={{
               width: theme.minTouchSize,
               height: theme.minTouchSize,
               borderRadius: theme.minTouchSize / 2,
-              backgroundColor: recording
-                ? theme.colors.danger
-                : theme.colors.surfaceRaised,
+              backgroundColor: theme.colors.surfaceRaised,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Icon name="mic" size={20} color={recording ? 'onStatus' : 'textMuted'} />
+            <Icon name="mic" size={20} color="textMuted" />
           </Pressable>
         )}
       </View>

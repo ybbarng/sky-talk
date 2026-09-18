@@ -103,7 +103,14 @@ export class ExpoVoiceRecorder implements VoiceRecorder {
         interruptionMode: 'mixWithOthers',
       })
 
-      const recorder = new audio.module.AudioRecorder(recordingOptions())
+      // **`AudioRecorder` 는 겉으로 안 내보낸다.** `expo-audio` 는 훅 안에서만
+      // `AudioModule.AudioRecorder` 를 쓴다. 겉의 이름으로 부르면 생성자가 없어
+      // 조용히 실패했고, 마이크를 눌러도 아무 반응이 없었다(2026-09-19).
+      const Recorder = recorderClass(audio.module)
+      if (Recorder === null) {
+        return err(domainError('not-found', '녹음 장치를 못 찾았어요', 'voice'))
+      }
+      const recorder = new Recorder(recordingOptions())
       await recorder.prepareToRecordAsync(recordingOptions())
       recorder.record()
 
@@ -281,5 +288,20 @@ async function readFile(
   } catch (cause) {
     const detail = cause instanceof Error ? cause.message : String(cause)
     return err(domainError('not-found', `녹음 파일을 읽지 못했어요: ${detail}`, 'voice'))
+  }
+}
+
+/** 녹음기 생성자를 찾는다. 겉에 없으면 안쪽 모듈에서 꺼낸다 */
+// biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈이라 타입을 우리가 정하지 않는다
+function recorderClass(loaded: any): (new (options: unknown) => any) | null {
+  const direct = loaded?.AudioModule?.AudioRecorder ?? loaded?.AudioRecorder
+  if (typeof direct === 'function') return direct
+
+  try {
+    const inner = require('expo-audio/build/AudioModule')
+    const fromInner = inner?.default?.AudioRecorder ?? inner?.AudioRecorder
+    return typeof fromInner === 'function' ? fromInner : null
+  } catch {
+    return null
   }
 }

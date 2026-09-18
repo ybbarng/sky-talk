@@ -25,6 +25,7 @@ import { PhotoViewer } from '@/presentation/components/chat/PhotoViewer'
 import { StickerPanel } from '@/presentation/components/chat/StickerPanel'
 import { TypingIndicator } from '@/presentation/components/chat/TypingIndicator'
 import { showsTime } from '@/presentation/components/chat/timeMarks'
+import { VoiceRecordSheet } from '@/presentation/components/chat/VoiceRecordSheet'
 import { Icon } from '@/presentation/components/Icon'
 import { Text } from '@/presentation/components/Text'
 import { myBatteryNote, peerBatteryNote } from '@/presentation/copy/battery'
@@ -42,7 +43,7 @@ import { useVoiceAutoplay } from '@/presentation/hooks/useVoiceAutoplay'
 import { useWebFallback } from '@/presentation/hooks/useWebFallback'
 import { decidePhase } from '@/presentation/stores/connectPhase'
 import { useCallStore } from '@/presentation/stores/useCallStore'
-import { useChatStore } from '@/presentation/stores/useChatStore'
+import { MAX_VOICE_MS, useChatStore } from '@/presentation/stores/useChatStore'
 import { useSetupStore } from '@/presentation/stores/useSetupStore'
 import { useTheme } from '@/presentation/theme/ThemeProvider'
 
@@ -60,6 +61,7 @@ export default function Chat() {
 
   const ready = useChatStore(s => s.ready)
   const messages = useChatStore(s => s.messages)
+  const hasMore = useChatStore(s => s.hasMore)
   const connection = useChatStore(s => s.connection)
   const peerTyping = useChatStore(s => s.peerTyping)
   const pendingCount = useChatStore(s => s.pendingCount)
@@ -80,6 +82,8 @@ export default function Chat() {
   const pendingVoice = useChatStore(s => s.pendingVoice)
   const sendPendingVoice = useChatStore(s => s.sendPendingVoice)
   const discardPendingVoice = useChatStore(s => s.discardPendingVoice)
+  const voiceNotice = useChatStore(s => s.voiceNotice)
+  const clearVoiceNotice = useChatStore(s => s.clearVoiceNotice)
   const cancelRecording = useChatStore(s => s.cancelRecording)
   const playingVoice = useChatStore(s => s.playingVoice)
   const playVoice = useChatStore(s => s.playVoice)
@@ -94,7 +98,7 @@ export default function Chat() {
   const peerFound = useChatStore(s => s.peerFound)
 
   const me = useMe(profile?.peerId)
-  const listRef = useRef<FlatList<Message>>(null)
+  const listRef = useRef<FlatList<ChatRow>>(null)
   // 바닥을 보고 있을 때만 새 말을 따라 내려간다. 내가 보낸 말은 늘 보인다.
   const bottom = useStickToBottom(listRef)
 
@@ -105,6 +109,8 @@ export default function Chat() {
   const [pendingPhoto, setPendingPhoto] = useState<'library' | 'camera' | null>(null)
   // 다 받은 사진을 눌러 크게 보는 중이면 그 파일 자리
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null)
+  // 녹음 창이 열려 있나
+  const [recordSheetOpen, setRecordSheetOpen] = useState(false)
   const narrowLink = connection?.link === 'ble'
 
   // 이어져 있는 동안은 지켜볼 필요가 없다. 블루투스가 꺼지면 어차피 끊긴다.
@@ -294,10 +300,27 @@ export default function Chat() {
   // 새 말은 바닥에 있을 때만 보인다. 위로 올려 옛 말을 읽는 중이면 안 움직인다.
   const ordered = useMemo(() => [...messages].reverse(), [messages])
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: Message; index: number }) => {
-      if (me === null) return null
+  // 날짜 구분선은 **따로 한 칸**이다. 말풍선 칸 안에 같이 넣으면 뒤집힌
+  // 목록에서 순서가 뒤바뀌어 말 아래에 떴다(2026-09-19). 뒤집혀 있으니
+  // 더 큰 번호가 위다. 그날의 가장 옛 말 다음에 넣으면 그 말 위에 보인다.
+  const rows = useMemo(() => {
+    const out: ChatRow[] = []
+    ordered.forEach((message, index) => {
+      out.push({ kind: 'message', key: message.id, message, index })
+      const older = ordered[index + 1]
+      if (older === undefined || !isSameDay(older.orderedAt(), message.orderedAt())) {
+        out.push({ kind: 'day', key: `day-`, at: message.orderedAt() })
+      }
+    })
+    return out
+  }, [ordered])
 
+  const renderItem = useCallback(
+    ({ item: row }: { item: ChatRow }) => {
+      if (me === null) return null
+      if (row.kind === 'day') return <DateDivider at={row.at} />
+
+      const { message: item, index } = row
       // 뒤집혀 있으니 다음 칸이 더 옛날 말이다
       const previous = ordered[index + 1]
       const next = ordered[index - 1]
@@ -309,11 +332,6 @@ export default function Chat() {
           : { author: next.author, at: next.orderedAt().getTime() },
       )
 
-      // 날이 바뀌면 사이에 날짜를 넣는다. 비행기가 날짜선을 넘거나
-      // 밤 비행이면 어제 말과 오늘 말이 붙어 버린다.
-      const showDate =
-        previous === undefined || !isSameDay(previous.orderedAt(), item.orderedAt())
-
       // 사진과 음성이면 어디까지 왔는지 같이 넘긴다
       const assetId =
         item.content.kind === 'photo' || item.content.kind === 'voice'
@@ -322,7 +340,6 @@ export default function Chat() {
 
       return (
         <>
-          {showDate && <DateDivider at={item.orderedAt()} />}
           <MessageBubble
             message={item}
             me={me}
@@ -391,17 +408,23 @@ export default function Chat() {
       >
         <FlatList
           ref={listRef}
-          data={ordered}
+          data={rows}
           inverted
-          keyExtractor={item => item.id}
+          keyExtractor={row => row.key}
           renderItem={renderItem}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.lg,
             paddingBottom: theme.spacing.lg,
           }}
           onEndReachedThreshold={0.2}
-          // 뒤집힌 목록에서는 머리가 아래, 꼬리가 위다
-          ListFooterComponent={<LoadMore onPress={() => void loadOlder()} />}
+          // 뒤집힌 목록에서는 끝이 위다. 위로 올리면 옛 말을 더 불러온다.
+          onEndReached={() => {
+            if (hasMore) void loadOlder()
+          }}
+          // 뒤집힌 목록에서는 머리가 아래, 꼬리가 위다. 더 없으면 안 보인다.
+          ListFooterComponent={
+            hasMore ? <LoadMore onPress={() => void loadOlder()} /> : null
+          }
           ListEmptyComponent={
             connected ? (
               <EmptyState />
@@ -453,16 +476,6 @@ export default function Chat() {
           />
         )}
 
-        {pendingVoice !== null && (
-          <NarrowLinkPrompt
-            title="블루투스라 음성이 천천히 가요"
-            detail={`${Math.round(pendingVoice.durationMs / 1000)}초 녹음이 약 ${narrowSeconds(pendingVoice.byteLength)}초 걸려요. 그동안 글은 조금 늦게 갈 수 있어요.`}
-            accept="보내기"
-            onAccept={() => void sendPendingVoice()}
-            onCancel={discardPendingVoice}
-          />
-        )}
-
         <MessageInput
           onSend={text => {
             bottom.pin()
@@ -479,11 +492,8 @@ export default function Chat() {
           // 크기를 먼저 고른다. 블루투스면 얼마나 걸릴지도 같이 보인다.
           onPhoto={() => setPendingPhoto('library')}
           onCamera={() => setPendingPhoto('camera')}
-          // 꾹 누르는 동안 녹음하고 손을 떼면 보낸다
-          onRecordStart={() => void startRecording()}
-          onRecordStop={() => void stopRecordingAndSend()}
-          onRecordCancel={() => void cancelRecording()}
-          recording={recording}
+          // 마이크를 누르면 녹음 창이 열린다. 거기서 녹음하고 보낼지 고른다
+          onRecord={() => setRecordSheetOpen(true)}
           onDoodle={() => router.push('/doodle')}
           offline={!connected}
         />
@@ -491,6 +501,33 @@ export default function Chat() {
 
       {/* 다 받은 사진을 누르면 화면 가득 본다. 아무 데나 누르면 닫힌다 */}
       <PhotoViewer uri={viewingPhoto} onClose={() => setViewingPhoto(null)} />
+
+      <VoiceRecordSheet
+        open={recordSheetOpen}
+        recording={recording}
+        recorded={pendingVoice}
+        narrow={narrowLink}
+        notice={voiceNotice}
+        maxMs={MAX_VOICE_MS}
+        onStart={() => void startRecording()}
+        onStop={() => void stopRecordingAndSend()}
+        onSend={() => {
+          bottom.pin()
+          void sendPendingVoice()
+          setRecordSheetOpen(false)
+        }}
+        onDiscard={() => {
+          discardPendingVoice()
+          setRecordSheetOpen(false)
+        }}
+        onClose={() => {
+          // 녹음 중에 닫으면 버린다. 보낼지 고르는 중이면 그것도 버린다.
+          if (recording) void cancelRecording()
+          discardPendingVoice()
+          clearVoiceNotice()
+          setRecordSheetOpen(false)
+        }}
+      />
 
       <CallOverlay
         state={call.state}
@@ -746,80 +783,6 @@ function useMe(raw: string | undefined): PeerId | null {
 }
 
 /**
- * 좁은 길로 보내기 전에 묻는다.
- *
- * 블루투스는 초당 3KB 남짓이다. 사진이나 음성이 몇십 초 걸리는데, 아무
- * 말 없이 보내면 "왜 안 가지" 싶고, 아예 막으면 "고장났나" 싶다.
- * **얼마나 걸리는지 말하고 사용자가 고른다.**
- */
-function NarrowLinkPrompt({
-  title,
-  detail,
-  accept,
-  onAccept,
-  onCancel,
-}: {
-  title: string
-  detail: string
-  accept: string
-  onAccept: () => void
-  onCancel: () => void
-}) {
-  const theme = useTheme()
-
-  return (
-    <View
-      style={{
-        marginHorizontal: theme.spacing.lg,
-        marginBottom: theme.spacing.sm,
-        padding: theme.spacing.md,
-        gap: theme.spacing.sm,
-        borderRadius: theme.radius.lg,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.surfaceRaised,
-      }}
-    >
-      <Text variant="bodyStrong">{title}</Text>
-      <Text variant="caption" color="textMuted">
-        {detail}
-      </Text>
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        <Pressable
-          onPress={onAccept}
-          accessibilityRole="button"
-          style={{
-            flex: 1,
-            borderRadius: theme.radius.md,
-            backgroundColor: theme.colors.me,
-            paddingVertical: theme.spacing.sm,
-            alignItems: 'center',
-          }}
-        >
-          <Text variant="label" style={{ color: theme.colors.meText }}>
-            {accept}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={onCancel}
-          accessibilityRole="button"
-          style={{
-            flex: 1,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            paddingVertical: theme.spacing.sm,
-            alignItems: 'center',
-          }}
-        >
-          <Text variant="label">그만두기</Text>
-        </Pressable>
-      </View>
-    </View>
-  )
-}
-
-/**
  * 사진을 얼마나 줄여 보낼지 고른다.
  *
  * 블루투스에서는 크기가 곧 시간이다. 그래서 크기마다 얼마나 걸릴지 적는다.
@@ -909,3 +872,13 @@ function roughTime(seconds: number): string {
   if (seconds < 60) return `${seconds}초`
   return `${Math.ceil(seconds / 60)}분`
 }
+
+/** 목록의 한 칸. 말풍선이거나 날짜 구분선이다 */
+type ChatRow =
+  | {
+      readonly kind: 'message'
+      readonly key: string
+      readonly message: Message
+      readonly index: number
+    }
+  | { readonly kind: 'day'; readonly key: string; readonly at: Date }
