@@ -151,7 +151,7 @@ function BubbleContent({
         <View
           style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
         >
-          <Icon name="alert" size={18} />
+          <Icon name="poke" size={18} />
           <Text style={{ color: textColor }}>콕 찔렀어요</Text>
         </View>
       )
