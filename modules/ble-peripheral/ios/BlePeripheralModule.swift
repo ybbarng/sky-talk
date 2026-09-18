@@ -235,8 +235,9 @@ private class PeripheralDelegate: NSObject, CBPeripheralManagerDelegate {
     didUnsubscribeFrom characteristic: CBCharacteristic
   ) {
     subscribers.removeAll { $0.identifier == central.identifier }
-    // 아무도 안 듣는데 쌓아둬도 갈 곳이 없다
-    if subscribers.isEmpty { backlog.removeAll() }
+    // 아무도 안 듣는데 쌓아둬도 갈 곳이 없다. 마지막 상대가 떠났을 때만 알린다.
+    guard subscribers.isEmpty else { return }
+    backlog.removeAll()
 
     emit("onSubscribe", ["subscribed": false, "mtu": 0])
   }

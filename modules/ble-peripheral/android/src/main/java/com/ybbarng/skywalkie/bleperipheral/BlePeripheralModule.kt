@@ -185,9 +185,11 @@ class BlePeripheralModule : Module() {
           if (listeners.none { it.address == device.address }) listeners.add(device)
           emitSubscribe(true, usableBytes())
         } else {
-          listeners.removeAll { it.address == device.address }
-          if (listeners.isEmpty()) synchronized(lock) { backlog.clear() }
-          emitSubscribe(false, 0)
+          val wasListening = listeners.removeAll { it.address == device.address }
+          if (wasListening && listeners.isEmpty()) {
+            synchronized(lock) { backlog.clear() }
+            emitSubscribe(false, 0)
+          }
         }
       }
 
