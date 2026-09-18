@@ -1,4 +1,4 @@
-import { Vibration as RNVibration } from 'react-native'
+import { Platform, Vibration as RNVibration } from 'react-native'
 import type { Vibration } from '@/application/ports/Vibration'
 
 /**
@@ -64,18 +64,25 @@ export class HapticVibration implements Vibration {
    * 한 번(`tap`)과 손끝으로 구별하기 위해서다.
    */
   async nudge(): Promise<void> {
+    // **안드로이드는 진동 모터를 직접 돌린다.** 햅틱의 가벼운 톡은 삼성 폰에서
+    // 거의 안 느껴져서 "진동이 안 온다" 고 했다(2026-09-19). 짧게 두 번.
+    if (Platform.OS === 'android') {
+      buzz([0, 70, 90, 70])
+      return
+    }
+
     const haptics = load()
     if (!haptics.available) {
-      buzz([0, 40, 100, 40])
+      buzz([0, 70, 90, 70])
       return
     }
 
     try {
-      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Light)
+      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Medium)
       await wait(120)
-      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Light)
+      await haptics.module.impactAsync(haptics.module.ImpactFeedbackStyle.Medium)
     } catch {
-      buzz([0, 40, 100, 40])
+      buzz([0, 70, 90, 70])
     }
   }
 
