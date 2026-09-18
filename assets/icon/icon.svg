@@ -2,10 +2,12 @@
   <!--
     Skywalkie 아이콘.
 
-    종이비행기와 소리의 파동을 합쳤다. 밤하늘 위에 기내 조명 색으로 그린다.
-    색은 디자인 토큰의 bg 와 me 를 그대로 쓴다.
+    닫힌 편지봉투 위에 밀랍 실링을 찍었고, 실링 안에 종이비행기를 새겼다.
+    "말을 봉투에 담아 비행기로 보낸다" 는 뜻이다. 밤하늘 바탕(bg)에
+    종이는 크림색, 실링은 기내 조명 주황(me)이다.
 
-    비행기는 기울이지 않는다. 기울이면 커서처럼 보인다.
+    작게(48px) 줄여도 봉투와 실링이 남아야 하므로 요소를 크게, 선을 굵게
+    그린다. 실링은 봉투 높이의 절반 가까이, 비행기는 실링 지름의 3분의 2다.
     (docs/07-design-system.md 7장)
   -->
   <defs>
@@ -13,14 +15,19 @@
       <stop offset="0%" stop-color="#1A2138"/>
       <stop offset="100%" stop-color="#0B1020"/>
     </linearGradient>
-    <linearGradient id="wingLeft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFC08C"/>
-      <stop offset="100%" stop-color="#FF9D5C"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6EA"/>
+      <stop offset="100%" stop-color="#EEDFC8"/>
     </linearGradient>
-    <linearGradient id="wingRight" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F08234"/>
-      <stop offset="100%" stop-color="#D4661F"/>
+    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F7EAD6"/>
+      <stop offset="100%" stop-color="#E3D0B4"/>
     </linearGradient>
+    <radialGradient id="wax" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0%" stop-color="#FF9D5C"/>
+      <stop offset="70%" stop-color="#E0702A"/>
+      <stop offset="100%" stop-color="#B85418"/>
+    </radialGradient>
   </defs>
 
   <rect width="1024" height="1024" fill="url(#sky)"/>
@@ -31,21 +38,23 @@
   <circle cx="812" cy="806" r="6" fill="#5CC8FF" opacity="0.3"/>
   <circle cx="236" cy="836" r="4" fill="#5CC8FF" opacity="0.28"/>
 
-  <!-- 소리의 파동. 비행기에서 좌우로 퍼진다 -->
-  <g fill="none" stroke="#5CC8FF" stroke-linecap="round">
-    <path d="M296 424a196 196 0 0 0 0 216" stroke-width="24" opacity="0.52"/>
-    <path d="M214 366a300 300 0 0 0 0 332" stroke-width="20" opacity="0.26"/>
-    <path d="M728 424a196 196 0 0 1 0 216" stroke-width="24" opacity="0.52"/>
-    <path d="M810 366a300 300 0 0 1 0 332" stroke-width="20" opacity="0.26"/>
-  </g>
+  <!-- 봉투 몸통 -->
+  <rect x="172" y="277" width="680" height="470" rx="30" fill="url(#paper)"/>
+  <!-- 뒤로 접힌 아랫자락. 봉투임을 알려주는 두 사선 -->
+  <path d="M188 736 L512 520 L836 736" fill="none" stroke="#C9B18F" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- 뚜껑. 위에서 내려와 가운데서 만난다 -->
+  <path d="M172 307 Q172 277 202 277 L822 277 Q852 277 852 307 L512 590 Z" fill="url(#flap)"/>
+  <path d="M176 300 L512 590 L848 300" fill="none" stroke="#B9A07C" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
 
-  <!-- 종이비행기. 위를 향한다 -->
-  <g>
-    <!-- 왼쪽 날개 (밝은 면) -->
-    <path d="M512 268 L512 634 L344 716 Z" fill="url(#wingLeft)"/>
-    <!-- 오른쪽 날개 (그늘진 면) -->
-    <path d="M512 268 L680 716 L512 634 Z" fill="url(#wingRight)"/>
-    <!-- 접힌 선 -->
-    <path d="M512 268 L512 634" stroke="#0B1020" stroke-width="7" opacity="0.28"/>
+  <!-- 밀랍 실링. 뚜껑이 만나는 곳에 찍는다 -->
+  <circle cx="512" cy="580" r="118" fill="#0B1020" opacity="0.22"/>
+  <circle cx="512" cy="572" r="112" fill="url(#wax)"/>
+  <circle cx="512" cy="572" r="94" fill="none" stroke="#FFF3E4" stroke-width="6" opacity="0.35"/>
+
+  <!-- 실링에 새긴 종이비행기. 오른쪽 위로 난다 -->
+  <g transform="translate(512 572) rotate(45)">
+    <path d="M0 -76 L0 48 L-58 78 Z" fill="#FFF3E4"/>
+    <path d="M0 -76 L58 78 L0 48 Z" fill="#FFD9BC"/>
+    <path d="M0 -76 L0 48" stroke="#B85418" stroke-width="6" opacity="0.5"/>
   </g>
 </svg>

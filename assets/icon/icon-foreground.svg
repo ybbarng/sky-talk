@@ -1,30 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    안드로이드 앞면. 뒷면 위에 얹힌다.
+    안드로이드 앞면. 뒷면(밤하늘) 위에 얹힌다.
 
     폰마다 아이콘 모양(동그라미·네모·물방울)이 달라 시스템이 잘라낸다.
-    그래서 중요한 것은 가운데 66% 안전 영역 안에 둔다.
+    그래서 봉투와 실링을 가운데 66% 안전 영역 안에 둔다.
     (docs/07-design-system.md 7장)
   -->
   <defs>
-    <linearGradient id="wingLeft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFC08C"/>
-      <stop offset="100%" stop-color="#FF9D5C"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6EA"/>
+      <stop offset="100%" stop-color="#EEDFC8"/>
     </linearGradient>
-    <linearGradient id="wingRight" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F08234"/>
-      <stop offset="100%" stop-color="#D4661F"/>
+    <linearGradient id="flap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F7EAD6"/>
+      <stop offset="100%" stop-color="#E3D0B4"/>
     </linearGradient>
+    <radialGradient id="wax" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0%" stop-color="#FF9D5C"/>
+      <stop offset="70%" stop-color="#E0702A"/>
+      <stop offset="100%" stop-color="#B85418"/>
+    </radialGradient>
   </defs>
 
-  <g fill="none" stroke="#5CC8FF" stroke-linecap="round">
-    <path d="M370 456a140 140 0 0 0 0 152" stroke-width="20" opacity="0.5"/>
-    <path d="M654 456a140 140 0 0 1 0 152" stroke-width="20" opacity="0.5"/>
-  </g>
+  <!-- 봉투 몸통 -->
+  <rect x="202" y="302" width="620" height="420" rx="28" fill="url(#paper)"/>
+  <path d="M216 712 L512 520 L808 712" fill="none" stroke="#C9B18F" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- 뚜껑 -->
+  <path d="M202 330 Q202 302 230 302 L794 302 Q822 302 822 330 L512 584 Z" fill="url(#flap)"/>
+  <path d="M206 324 L512 584 L818 324" fill="none" stroke="#B9A07C" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
 
-  <g>
-    <path d="M512 352 L512 610 L394 668 Z" fill="url(#wingLeft)"/>
-    <path d="M512 352 L630 668 L512 610 Z" fill="url(#wingRight)"/>
-    <path d="M512 352 L512 610" stroke="#0B1020" stroke-width="6" opacity="0.28"/>
+  <!-- 밀랍 실링 -->
+  <circle cx="512" cy="580" r="106" fill="#0B1020" opacity="0.22"/>
+  <circle cx="512" cy="572" r="100" fill="url(#wax)"/>
+  <circle cx="512" cy="572" r="84" fill="none" stroke="#FFF3E4" stroke-width="5" opacity="0.35"/>
+
+  <!-- 실링에 새긴 종이비행기. 오른쪽 위로 난다 -->
+  <g transform="translate(512 572) rotate(45)">
+    <path d="M0 -68 L0 43 L-52 70 Z" fill="#FFF3E4"/>
+    <path d="M0 -68 L52 70 L0 43 Z" fill="#FFD9BC"/>
+    <path d="M0 -68 L0 43" stroke="#B85418" stroke-width="5" opacity="0.5"/>
   </g>
 </svg>
