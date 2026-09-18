@@ -105,10 +105,10 @@ function linkText(state: ConnectionState | null): string {
 
   switch (state.link) {
     case 'wifi':
-      return 'Wi-Fi(집에서만) · 글·사진·목소리 전부'
+      return 'Wi-Fi'
     case 'ble':
-      return '블루투스 · 글과 이모티콘, 사진·음성은 작게 줄여서'
+      return '블루투스'
     case 'web':
-      return '웹 · 글만 가능'
+      return '웹'
   }
 }

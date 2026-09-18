@@ -15,7 +15,7 @@ import { Card } from '@/presentation/components/Card'
 import { HelpTip } from '@/presentation/components/HelpTip'
 import { Icon } from '@/presentation/components/Icon'
 import { Text } from '@/presentation/components/Text'
-import { alertModeChoice, audioModeChoice } from '@/presentation/copy/onboarding'
+import { alertModeChoice } from '@/presentation/copy/onboarding'
 import { useChatStore } from '@/presentation/stores/useChatStore'
 import { useSetupStore } from '@/presentation/stores/useSetupStore'
 import { useTheme, useThemePreference } from '@/presentation/theme/ThemeProvider'
@@ -41,7 +41,6 @@ export default function Settings() {
         <AlertSection />
         <FlightSection />
         <VoiceSection />
-        <AudioSection />
         <ConversationSection />
         <AboutSection />
       </ScrollView>
@@ -241,52 +240,6 @@ function AppearanceSection() {
   )
 }
 
-function AudioSection() {
-  const theme = useTheme()
-  const preferences = useSetupStore(s => s.preferences)
-  const chooseAudioMode = useSetupStore(s => s.chooseAudioMode)
-
-  const modes = Object.keys(audioModeChoice) as Array<Preferences['audioMode']>
-
-  return (
-    <Section title="소리" help="audioMode">
-      <View style={{ gap: theme.spacing.sm }}>
-        {modes.map(mode => {
-          const choice = audioModeChoice[mode]
-          const active = preferences.audioMode === mode
-
-          return (
-            <Pressable
-              key={mode}
-              onPress={() => void chooseAudioMode(mode)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-              style={{
-                borderRadius: theme.radius.md,
-                borderWidth: active ? 2 : 1,
-                borderColor: active ? theme.colors.me : theme.colors.border,
-                padding: theme.spacing.md,
-                gap: 2,
-              }}
-            >
-              <Text variant="bodyStrong">{choice.label}</Text>
-              <Text variant="caption" color="textMuted">
-                {choice.detail}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
-    </Section>
-  )
-}
-
-/**
- * 새 말이 왔을 때 어떻게 알릴까.
- *
- * **보고 있을 때와 안 보고 있을 때를 따로 정한다.** 서로 다른 일이라
- * 하나로 묶으면 한쪽을 끄려다 다른 쪽까지 꺼진다.
- */
 function AlertSection() {
   const theme = useTheme()
   const preferences = useSetupStore(s => s.preferences)
