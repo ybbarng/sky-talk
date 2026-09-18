@@ -111,12 +111,13 @@ interface ChatState {
   playVoice(assetId: string): Promise<void>
   stopVoice(): Promise<void>
   /**
-   * 남은 비행 시간을 정하고 상대에게도 알린다.
+   * 남은 비행 시간과 비행 전체 길이를 상대에게 알린다. 0 이면 끈 것이다.
    *
    * **시각이 아니라 남은 길이를 보낸다.** 두 폰의 시계가 다를 수 있고
-   * 시차를 넘으면 한쪽이 먼저 시간대를 바꾼다.
+   * 시차를 넘으면 한쪽이 먼저 시간대를 바꾼다. 전체 길이는 진행 막대의
+   * 출발점이 된다. 안 주면 남은 것을 전체로 본다.
    */
-  shareFlight(remainingMs: number): Promise<void>
+  shareFlight(remainingMs: number, totalMs?: number): Promise<void>
   /** 손으로 그린 낙서. 그림 파일이 아니라 선의 좌표로 간다 */
   sendDoodle(strokes: readonly Stroke[]): Promise<void>
   loadOlder(): Promise<void>
@@ -141,9 +142,9 @@ export interface ChatDeps {
     readonly pairingCode: string
     readonly appVersion: string
   }
+  /** 상대가 비행 시간을 정했다. 남은 것은 내 시계로 다시 센다 */
+  onFlightShared?(remainingMs: number, totalMs: number): void
   /** 상대를 알게 되면 기억해 둔다 */
-  /** 상대가 남은 비행 시간을 정했다. 내 시계로 다시 센다 */
-  onFlightShared?(remainingMs: number): void
   onPeerKnown?(peer: {
     peerId: string
     displayName: string
@@ -358,7 +359,11 @@ export const useChatStore = create<ChatState>((set, get) => {
        * 쓰면 시차를 넘을 때 엉뚱해진다. 건너오는 데 걸린 몇백
        * 밀리초만큼 어긋나는데, 비행 시간에 견주면 없는 것과 같다.
        */
-      deps?.onFlightShared?.(envelope.p.remainingMs)
+      // 총 길이가 없으면 예전 앱이다. 남은 것을 총 길이로 본다.
+      deps?.onFlightShared?.(
+        envelope.p.remainingMs,
+        envelope.p.totalMs ?? envelope.p.remainingMs,
+      )
       return
     }
 
@@ -800,9 +805,12 @@ export const useChatStore = create<ChatState>((set, get) => {
       set({ playingVoice: null })
     },
 
-    async shareFlight(remainingMs) {
+    async shareFlight(remainingMs, totalMs) {
       const active = deps
       if (active === null) return
+
+      const remaining = Math.max(0, Math.round(remainingMs))
+      const total = totalMs === undefined ? undefined : Math.max(1, Math.round(totalMs))
 
       // 못 보내도 내 화면에는 뜬다. 상대는 다음에 붙을 때 다시 알린다.
       await active.transport.send({
@@ -811,7 +819,11 @@ export const useChatStore = create<ChatState>((set, get) => {
         seq: 0,
         ts: systemClock.epochMillis(),
         t: 'flight',
-        p: { remainingMs: Math.max(0, Math.round(remainingMs)) },
+        // 끌 때(0)는 총 길이를 안 보낸다. 규약이 양수만 받는다.
+        p:
+          remaining === 0 || total === undefined
+            ? { remainingMs: remaining }
+            : { remainingMs: remaining, totalMs: total },
       })
     },
 

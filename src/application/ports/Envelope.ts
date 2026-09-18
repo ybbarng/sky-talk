@@ -85,6 +85,13 @@ export interface PresencePayload {
 export interface FlightPayload {
   /** 앞으로 이만큼 남았다. 0 이면 끈 것이다 */
   readonly remainingMs: number
+  /**
+   * 비행이 통째로 얼마나 긴가. 진행 막대의 출발점이 된다.
+   *
+   * 출발·도착 시각으로 잡으면 남은 것보다 길다. **없으면 남은 것을
+   * 총 길이로 본다.** 예전 앱이 보낸 봉투가 그렇다.
+   */
+  readonly totalMs?: number
 }
 
 export interface SyncRequestPayload {

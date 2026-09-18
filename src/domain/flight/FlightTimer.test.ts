@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fromDepartureAndArrival,
   fromHoursAndMinutes,
   hasArrived,
   MAX_FLIGHT_MS,
+  minuteOfDay,
   progress,
   remainingMs,
   remainingWords,
@@ -176,5 +178,131 @@ describe('시간과 분을 밀리초로', () => {
 
   it('소수를 거절한다', () => {
     expect(fromHoursAndMinutes(1.5, 0)).toBeNull()
+  })
+})
+
+describe('출발 시각과 도착 시각으로 잡기', () => {
+  const at = (hours: number, minutes = 0) => hours * 60 + minutes
+
+  it('비행 중이면 도착까지 남은 것과 비행 길이를 따로 안다', () => {
+    // 15:00 출발, 18:00 도착, 지금 16:00. 한 시간 왔고 두 시간 남았다
+    const span = fromDepartureAndArrival({
+      departMinutes: at(15),
+      arriveMinutes: at(18),
+      nowMinutes: at(16),
+    })
+
+    expect(span).toEqual({ totalMs: 3 * HOUR, remainingMs: 2 * HOUR })
+    // 막대는 출발 기준이라 삼분의 일 온 것으로 그려진다
+    expect(progress(span?.remainingMs ?? 0, span?.totalMs ?? 0)).toBeCloseTo(1 / 3)
+  })
+
+  it('자정을 넘는 비행도 안다', () => {
+    // 23:30 출발, 06:10 도착, 지금 01:00
+    const span = fromDepartureAndArrival({
+      departMinutes: at(23, 30),
+      arriveMinutes: at(6, 10),
+      nowMinutes: at(1),
+    })
+
+    expect(span?.totalMs).toBe(6 * HOUR + 40 * 60_000)
+    expect(span?.remainingMs).toBe(5 * HOUR + 10 * 60_000)
+  })
+
+  it('자정을 넘는 비행을 자정 전에 넣어도 맞는다', () => {
+    const span = fromDepartureAndArrival({
+      departMinutes: at(23, 30),
+      arriveMinutes: at(6, 10),
+      nowMinutes: at(23, 45),
+    })
+
+    expect(span?.remainingMs).toBe(6 * HOUR + 25 * 60_000)
+  })
+
+  it('아직 안 떴으면 출발까지를 남은 시간에 더한다', () => {
+    // 게이트에서 미리 넣었다. 14:00 인데 15:00 출발
+    const span = fromDepartureAndArrival({
+      departMinutes: at(15),
+      arriveMinutes: at(18),
+      nowMinutes: at(14),
+    })
+
+    expect(span).toEqual({ totalMs: 3 * HOUR, remainingMs: 4 * HOUR })
+    // 비행기는 출발 전까지 출발점에 서 있다
+    expect(progress(span?.remainingMs ?? 0, span?.totalMs ?? 0)).toBe(0)
+  })
+
+  it('이미 내렸으면 잡지 않는다', () => {
+    // 15:00 출발, 18:00 도착인데 지금 19:00
+    expect(
+      fromDepartureAndArrival({
+        departMinutes: at(15),
+        arriveMinutes: at(18),
+        nowMinutes: at(19),
+      }),
+    ).toBeNull()
+  })
+
+  it('출발이 열두 시간 넘게 남았으면 내린 것으로 본다', () => {
+    // 시·분만으로는 어제 것인지 오늘 것인지 알 수 없다. 반나절이 기준이다
+    const flight = { departMinutes: at(15), arriveMinutes: at(18) }
+
+    expect(fromDepartureAndArrival({ ...flight, nowMinutes: at(2) })).toBeNull()
+    expect(fromDepartureAndArrival({ ...flight, nowMinutes: at(3) })).not.toBeNull()
+  })
+
+  it('출발과 도착이 같으면 거절한다', () => {
+    expect(
+      fromDepartureAndArrival({
+        departMinutes: at(15),
+        arriveMinutes: at(15),
+        nowMinutes: at(14),
+      }),
+    ).toBeNull()
+  })
+
+  it('하루 밖의 값은 거절한다', () => {
+    expect(
+      fromDepartureAndArrival({
+        departMinutes: at(24),
+        arriveMinutes: at(18),
+        nowMinutes: at(14),
+      }),
+    ).toBeNull()
+    expect(
+      fromDepartureAndArrival({
+        departMinutes: 15.5,
+        arriveMinutes: at(18),
+        nowMinutes: at(14),
+      }),
+    ).toBeNull()
+  })
+
+  it('애매하면 비행 중인 쪽으로 본다', () => {
+    // 12:00 출발 11:00 도착(23시간), 지금 00:00. 12시간 전에 떴을 수도
+    // 12시간 뒤에 뜰 수도 있다. 비행기에서 넣는 앱이라 떴다고 본다.
+    const span = fromDepartureAndArrival({
+      departMinutes: at(12),
+      arriveMinutes: at(11),
+      nowMinutes: at(0),
+    })
+
+    expect(span).toEqual({ totalMs: 23 * HOUR, remainingMs: 11 * HOUR })
+    // 어느 쪽이든 봉투에 실을 수 있는 하루 안이다
+    expect(span?.remainingMs).toBeLessThanOrEqual(MAX_FLIGHT_MS)
+  })
+})
+
+describe('시와 분을 하루 안의 분으로', () => {
+  it('더해서 옮긴다', () => {
+    expect(minuteOfDay(15, 30)).toBe(930)
+    expect(minuteOfDay(0, 0)).toBe(0)
+  })
+
+  it('하루 밖이면 거절한다', () => {
+    expect(minuteOfDay(24, 0)).toBeNull()
+    expect(minuteOfDay(12, 60)).toBeNull()
+    expect(minuteOfDay(-1, 0)).toBeNull()
+    expect(minuteOfDay(1.5, 0)).toBeNull()
   })
 })

@@ -153,6 +153,13 @@ export const envelopeSchema = z.discriminatedUnion('t', [
         .int()
         .min(0)
         .max(24 * 60 * 60 * 1000),
+      // 비행이 통째로 얼마나 긴가. 예전 앱은 안 보낸다
+      totalMs: z
+        .number()
+        .int()
+        .positive()
+        .max(24 * 60 * 60 * 1000)
+        .optional(),
     }),
   }),
   z.object({

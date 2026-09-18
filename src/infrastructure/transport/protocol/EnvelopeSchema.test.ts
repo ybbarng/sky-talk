@@ -101,6 +101,45 @@ describe('봉투를 글로 바꾸고 되돌리기', () => {
 
     expect(decoded.kind).toBe('ok')
   })
+
+  it('비행 봉투는 전체 길이를 실어도 되고 안 실어도 된다', () => {
+    // 예전 앱은 남은 시간만 보낸다. 그것도 그대로 읽혀야 한다.
+    const older: Envelope = {
+      v: PROTOCOL_VERSION,
+      t: 'flight',
+      id: makeUlid(1758000000000),
+      seq: 0,
+      ts: 1758000000000,
+      p: { remainingMs: 2 * 60 * 60 * 1000 },
+    }
+    const newer: Envelope = {
+      ...older,
+      p: { remainingMs: 2 * 60 * 60 * 1000, totalMs: 3 * 60 * 60 * 1000 },
+    }
+
+    expect(roundTrip(older)).toEqual({ kind: 'ok', envelope: older })
+    expect(roundTrip(newer)).toEqual({ kind: 'ok', envelope: newer })
+  })
+
+  it('비행 전체 길이가 하루를 넘거나 0 이면 거절한다', () => {
+    const base = {
+      v: PROTOCOL_VERSION,
+      t: 'flight',
+      id: makeUlid(1758000000000),
+      seq: 0,
+      ts: 1758000000000,
+    }
+
+    expect(
+      envelopeSchema.safeParse({ ...base, p: { remainingMs: 1000, totalMs: 0 } }).success,
+    ).toBe(false)
+    expect(
+      envelopeSchema.safeParse({
+        ...base,
+        p: { remainingMs: 1000, totalMs: 25 * 60 * 60 * 1000 },
+      }).success,
+    ).toBe(false)
+  })
 })
 
 describe('모르는 종류가 와도 연결을 끊지 않는다', () => {
