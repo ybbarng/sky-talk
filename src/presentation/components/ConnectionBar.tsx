@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import type { ConnectionState } from '@/domain/connection/ConnectionState'
@@ -25,7 +26,13 @@ interface ConnectionBarProps {
  *
  * 어느 탭에 있든 보인다. 색이 바뀔 때 서서히 변한다 — 깜빡이면
  * 눈이 그리로 자꾸 간다. (docs/07-design-system.md 9장)
+ *
+ * **이어져 있으면 잠시 뒤 사라진다.** 잘 되고 있는 것을 세 시간 내내
+ * 띄워둘 이유가 없다. 상대 이름 옆의 점이 그 일을 맡는다. 끊기면 다시
+ * 내려와서 무슨 일인지 말한다.
  */
+const HIDE_AFTER_MS = 3_000
+
 export function ConnectionBar({
   state,
   pendingCount = 0,
@@ -34,12 +41,25 @@ export function ConnectionBar({
 }: ConnectionBarProps) {
   const theme = useTheme()
   const look = describe(state, pendingCount, announceDisconnect)
+  const usable = state?.isUsable() === true
+  const [hidden, setHidden] = useState(false)
+
+  useEffect(() => {
+    if (!usable) {
+      setHidden(false)
+      return
+    }
+    const timer = setTimeout(() => setHidden(true), HIDE_AFTER_MS)
+    return () => clearTimeout(timer)
+  }, [usable])
 
   const animatedStyle = useAnimatedStyle(() => ({
     backgroundColor: withTiming(theme.colors[look.color], {
       duration: theme.duration.status,
     }),
   }))
+
+  if (hidden) return null
 
   return (
     <Pressable
@@ -100,14 +120,14 @@ function describe(
 
   switch (state.phase) {
     case 'connected':
-      return state.link === 'ble'
-        ? {
-            color: 'warning',
-            icon: 'bluetooth',
-            text: '이어져 있어요 · 지금은 글만',
-            showSpinner: false,
-          }
-        : { color: 'success', icon: 'wifi', text: '이어져 있어요', showSpinner: false }
+      // 블루투스도 제대로 이어진 것이다. 비행기에서는 이것뿐이라 "글만" 같은
+      // 단서를 달면 늘 반쪽짜리로 보인다.
+      return {
+        color: 'success',
+        icon: state.link === 'ble' ? 'bluetooth' : 'wifi',
+        text: '이어져 있어요',
+        showSpinner: false,
+      }
 
     case 'switching':
       return {
