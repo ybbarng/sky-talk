@@ -150,6 +150,30 @@ export const JPEG_QUALITY = 0.8
 export const NARROW_LONG_EDGE = 800
 export const NARROW_JPEG_QUALITY = 0.5
 
+/**
+ * 보내는 사람이 고르는 크기.
+ *
+ *   · small    — 800px · 0.5. 블루투스로 30초 안팎. 기내식 사진은 이걸로 된다
+ *   · medium   — 1600px · 0.8. 예전 기본값. 블루투스로 2~3분
+ *   · original — 4096px · 0.9. 거의 원본. 블루투스로 10분 넘게 걸릴 수 있다
+ */
+export type PhotoSize = 'small' | 'medium' | 'original'
+
+export const PHOTO_SIZES: Readonly<
+  Record<
+    PhotoSize,
+    { readonly longEdge: number; readonly quality: number; readonly typicalBytes: number }
+  >
+> = {
+  small: {
+    longEdge: NARROW_LONG_EDGE,
+    quality: NARROW_JPEG_QUALITY,
+    typicalBytes: 80 * 1024,
+  },
+  medium: { longEdge: RESIZE_LONG_EDGE, quality: JPEG_QUALITY, typicalBytes: 350 * 1024 },
+  original: { longEdge: 4096, quality: 0.9, typicalBytes: 3 * 1024 * 1024 },
+}
+
 /** 좁은 길의 어림 속도. 얼마나 걸릴지 말해줄 때 쓴다 */
 export const NARROW_BYTES_PER_SECOND = 3_000
 

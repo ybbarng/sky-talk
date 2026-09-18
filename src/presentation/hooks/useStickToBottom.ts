@@ -30,6 +30,8 @@ import { isNearBottom } from '../components/chat/listBottom'
  */
 export function useStickToBottom<T>(listRef: RefObject<FlatList<T> | null>) {
   const pinned = useRef(true)
+  /** 마지막으로 본 목록의 키. 키가 바뀐 직후의 스크롤 신호는 사람이 한 것이 아니다 */
+  const viewport = useRef<number | null>(null)
 
   const scrollToEnd = useCallback(() => {
     listRef.current?.scrollToEnd({ animated: false })
@@ -46,6 +48,15 @@ export function useStickToBottom<T>(listRef: RefObject<FlatList<T> | null>) {
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+
+    // **목록의 키가 바뀐 직후의 신호는 건너뛴다.** 도구 줄을 펼치면 목록이
+    // 짧아지는데, 그 순간 바닥까지의 거리가 갑자기 늘어 "위로 올렸다" 고
+    // 잘못 보고 끝으로 안 내려갔다. 사람이 손으로 올린 것만 센다.
+    if (viewport.current !== layoutMeasurement.height) {
+      viewport.current = layoutMeasurement.height
+      return
+    }
+
     pinned.current = isNearBottom(
       contentOffset.y,
       contentSize.height,

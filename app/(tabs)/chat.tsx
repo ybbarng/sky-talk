@@ -4,13 +4,19 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AppState,
   FlatList,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { narrowSeconds } from '@/application/assets/AssetChunks'
+import {
+  narrowSeconds,
+  PHOTO_SIZES,
+  type PhotoSize,
+} from '@/application/assets/AssetChunks'
 import { createContainer, currentContainer } from '@/composition/container'
 import { startFlight } from '@/domain/flight/FlightTimer'
 import type { Message } from '@/domain/message/Message'
@@ -103,8 +109,10 @@ export default function Chat() {
   const call = useCallStore()
   const preferences = useSetupStore(s => s.preferences)
   const [stickersOpen, setStickersOpen] = useState(false)
-  // 블루투스로 사진을 보내려 할 때 어디서 고를지 들고 있다가, 사용자가 좋다고 하면 연다
-  const [narrowPhoto, setNarrowPhoto] = useState<'library' | 'camera' | null>(null)
+  // 사진을 어디서 고를지 들고 있다가, 크기를 고르면 연다
+  const [pendingPhoto, setPendingPhoto] = useState<'library' | 'camera' | null>(null)
+  // 다 받은 사진을 눌러 크게 보는 중이면 그 파일 자리
+  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null)
   const narrowLink = connection?.link === 'ble'
 
   // 이어져 있는 동안은 지켜볼 필요가 없다. 블루투스가 꺼지면 어차피 끊긴다.
@@ -327,6 +335,7 @@ export default function Chat() {
             playingVoice={assetId !== null && playingVoice === assetId}
             onPlayVoice={id => void playVoice(id)}
             onStopVoice={() => void stopVoice()}
+            onOpenPhoto={path => setViewingPhoto(path)}
           />
         </>
       )
@@ -431,17 +440,15 @@ export default function Chat() {
           />
         )}
 
-        {narrowPhoto !== null && (
-          <NarrowLinkPrompt
-            title="블루투스라 사진을 작게 줄여서 보내요"
-            detail="화질이 떨어지고 30초쯤 걸릴 수 있어요. 집에서 Wi-Fi 로 이으면 원래 크기로 보낼 수 있어요."
-            accept="작게 줄여 보내기"
-            onAccept={() => {
-              const from = narrowPhoto
-              setNarrowPhoto(null)
-              void sendPhoto(from, undefined, true)
+        {pendingPhoto !== null && (
+          <PhotoSizePrompt
+            narrow={narrowLink}
+            onPick={size => {
+              const from = pendingPhoto
+              setPendingPhoto(null)
+              void sendPhoto(from, undefined, size)
             }}
-            onCancel={() => setNarrowPhoto(null)}
+            onCancel={() => setPendingPhoto(null)}
           />
         )}
 
@@ -468,13 +475,9 @@ export default function Chat() {
           onStickers={() => setStickersOpen(open => !open)}
           // 누르면 앨범, 길게 누르면 카메라.
           // 기내식이나 창밖을 바로 찍어 보낼 때가 있다.
-          // 블루투스면 먼저 얼마나 걸릴지 알리고 사용자가 고른다.
-          onPhoto={() =>
-            narrowLink ? setNarrowPhoto('library') : void sendPhoto('library')
-          }
-          onCamera={() =>
-            narrowLink ? setNarrowPhoto('camera') : void sendPhoto('camera')
-          }
+          // 크기를 먼저 고른다. 블루투스면 얼마나 걸릴지도 같이 보인다.
+          onPhoto={() => setPendingPhoto('library')}
+          onCamera={() => setPendingPhoto('camera')}
           // 꾹 누르는 동안 녹음하고 손을 떼면 보낸다
           onRecordStart={() => void startRecording()}
           onRecordStop={() => void stopRecordingAndSend()}
@@ -484,6 +487,29 @@ export default function Chat() {
           offline={!connected}
         />
       </KeyboardAvoidingView>
+
+      {/* 다 받은 사진을 누르면 화면 가득 본다. 아무 데나 누르면 닫힌다 */}
+      <Modal
+        visible={viewingPhoto !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewingPhoto(null)}
+      >
+        <Pressable
+          onPress={() => setViewingPhoto(null)}
+          accessibilityRole="button"
+          accessibilityLabel="사진 닫기"
+          style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: 'center' }}
+        >
+          {viewingPhoto !== null && (
+            <Image
+              source={{ uri: viewingPhoto }}
+              resizeMode="contain"
+              style={{ width: '100%', height: '100%' }}
+            />
+          )}
+        </Pressable>
+      </Modal>
 
       <CallOverlay
         state={call.state}
@@ -810,4 +836,95 @@ function NarrowLinkPrompt({
       </View>
     </View>
   )
+}
+
+/**
+ * 사진을 얼마나 줄여 보낼지 고른다.
+ *
+ * 블루투스에서는 크기가 곧 시간이다. 그래서 크기마다 얼마나 걸릴지 적는다.
+ * Wi-Fi 에서는 금방이라 시간은 안 적는다.
+ */
+function PhotoSizePrompt({
+  narrow,
+  onPick,
+  onCancel,
+}: {
+  narrow: boolean
+  onPick: (size: PhotoSize) => void
+  onCancel: () => void
+}) {
+  const theme = useTheme()
+
+  const choices: ReadonlyArray<{ size: PhotoSize; label: string; detail: string }> = [
+    { size: 'small', label: '작게', detail: '화질이 떨어져요' },
+    { size: 'medium', label: '중간', detail: '보통 이 정도면 돼요' },
+    { size: 'original', label: '원본', detail: '그대로 보내요' },
+  ]
+
+  return (
+    <View
+      style={{
+        marginHorizontal: theme.spacing.lg,
+        marginBottom: theme.spacing.sm,
+        padding: theme.spacing.md,
+        gap: theme.spacing.sm,
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.surfaceRaised,
+      }}
+    >
+      <Text variant="bodyStrong">사진을 얼마나 크게 보낼까요</Text>
+      {narrow && (
+        <Text variant="caption" color="textMuted">
+          블루투스라 천천히 가요. 큰 사진은 몇 분이 걸릴 수 있어요.
+        </Text>
+      )}
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+        {choices.map(choice => (
+          <Pressable
+            key={choice.size}
+            onPress={() => onPick(choice.size)}
+            accessibilityRole="button"
+            style={{
+              flex: 1,
+              borderRadius: theme.radius.md,
+              backgroundColor: theme.colors.me,
+              paddingVertical: theme.spacing.sm,
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Text variant="label" style={{ color: theme.colors.meText }}>
+              {choice.label}
+            </Text>
+            <Text variant="caption" style={{ color: theme.colors.meText }}>
+              {narrow
+                ? `약 ${roughTime(narrowSeconds(PHOTO_SIZES[choice.size].typicalBytes))}`
+                : choice.detail}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Pressable
+        onPress={onCancel}
+        accessibilityRole="button"
+        style={{
+          borderRadius: theme.radius.md,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          paddingVertical: theme.spacing.sm,
+          alignItems: 'center',
+        }}
+      >
+        <Text variant="label">그만두기</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+/** 초를 사람이 읽는 말로. 90초는 "1분 30초" 보다 "2분" 이 낫다 */
+function roughTime(seconds: number): string {
+  if (seconds < 60) return `${seconds}초`
+  return `${Math.ceil(seconds / 60)}분`
 }

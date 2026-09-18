@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { chunkCountFor } from '@/application/assets/AssetChunks'
+import { chunkCountFor, type PhotoSize } from '@/application/assets/AssetChunks'
 import { ReceiveAsset } from '@/application/assets/ReceiveAsset'
 import { SendPhoto } from '@/application/assets/SendPhoto'
 import { SendVoice } from '@/application/assets/SendVoice'
@@ -106,8 +106,8 @@ interface ChatState {
   shareBattery(level: number): Promise<void>
   /** 내 캐릭터가 자세를 취한다. 자세 이름만 나가서 몇십 바이트다 */
   sendSticker(pose: StickerPose): Promise<void>
-  /** 앨범에서 고르거나 찍어 보낸다. `narrow` 면 블루투스용으로 훨씬 작게 줄인다 */
-  sendPhoto(from: 'library' | 'camera', caption?: string, narrow?: boolean): Promise<void>
+  /** 앨범에서 고르거나 찍어 보낸다. 크기는 보내는 사람이 고른다 */
+  sendPhoto(from: 'library' | 'camera', caption?: string, size?: PhotoSize): Promise<void>
   /** 목소리를 녹음하기 시작한다. 이미 녹음 중이면 아무 일도 안 한다 */
   startRecording(): Promise<void>
   /** 녹음을 마치고 보낸다. 블루투스면 바로 안 보내고 `pendingVoice` 에 둔다 */
@@ -317,10 +317,17 @@ export const useChatStore = create<ChatState>((set, get) => {
       // 내 것인데 파일이 없으면 보내다 죽은 것이다. 상대에게 달라고 할 수 없다.
       if (message.isMine(active.me)) continue
 
-      assetReceiver(active)?.expect(content.assetId, content.byteLength)
-      if (get().assetProgress[content.assetId] === undefined) {
-        set({ assetProgress: { ...get().assetProgress, [content.assetId]: 0 } })
+      // **너무 오래된 것은 안 기다린다.** 며칠 전 시험하다 만 사진까지 인사할
+      // 때마다 달라고 하면 좁은 길이 그것으로 꽉 차서 지금 대화가 밀린다.
+      // 한 비행 안의 것만 챙긴다.
+      if (
+        systemClock.epochMillis() - message.orderedAt().getTime() >
+        TRACK_ASSETS_WITHIN_MS
+      ) {
+        continue
       }
+
+      assetReceiver(active)?.expect(content.assetId, content.byteLength)
     }
   }
 
@@ -752,7 +759,7 @@ export const useChatStore = create<ChatState>((set, get) => {
      * **줄을 세우지 않는다.** 사진은 오래 걸리는데, 줄을 세우면 그동안
      * 글도 못 보낸다. 대신 한 번에 한 장만 보내게 막는다.
      */
-    async sendPhoto(from, caption, narrow) {
+    async sendPhoto(from, caption, size) {
       const active = deps
       if (active === null || get().sendingPhoto) return
 
@@ -788,7 +795,7 @@ export const useChatStore = create<ChatState>((set, get) => {
           conversation,
           uri: picked.value.uri,
           ...(caption === undefined ? {} : { caption }),
-          ...(narrow === true ? { narrow: true } : {}),
+          ...(size === undefined ? {} : { size }),
           onProgress: (sent, total, assetId) => {
             set({
               assetProgress: {
@@ -1016,3 +1023,6 @@ export const useChatStore = create<ChatState>((set, get) => {
     },
   }
 })
+
+/** 이보다 오래된 사진·음성은 다시 달라고 하지 않는다. 비행 하나 길이다 */
+const TRACK_ASSETS_WITHIN_MS = 12 * 60 * 60 * 1000

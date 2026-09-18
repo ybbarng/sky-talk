@@ -28,6 +28,8 @@ interface MessageBubbleProps {
   playingVoice?: boolean
   onPlayVoice?: (assetId: string) => void
   onStopVoice?: () => void
+  /** 다 받은 사진을 누르면 크게 본다 */
+  onOpenPhoto?: (path: string) => void
 }
 
 export function MessageBubble({
@@ -41,6 +43,7 @@ export function MessageBubble({
   playingVoice = false,
   onPlayVoice,
   onStopVoice,
+  onOpenPhoto,
 }: MessageBubbleProps) {
   const theme = useTheme()
   const mine = message.isMine(me)
@@ -98,6 +101,7 @@ export function MessageBubble({
           playingVoice={playingVoice}
           {...(onPlayVoice === undefined ? {} : { onPlayVoice })}
           {...(onStopVoice === undefined ? {} : { onStopVoice })}
+          {...(onOpenPhoto === undefined ? {} : { onOpenPhoto })}
         />
       </View>
 
@@ -131,6 +135,7 @@ function BubbleContent({
   playingVoice,
   onPlayVoice,
   onStopVoice,
+  onOpenPhoto,
 }: {
   message: Message
   me: PeerId
@@ -140,6 +145,7 @@ function BubbleContent({
   playingVoice: boolean
   onPlayVoice?: (assetId: string) => void
   onStopVoice?: () => void
+  onOpenPhoto?: (path: string) => void
 }) {
   const theme = useTheme()
 
@@ -187,6 +193,9 @@ function BubbleContent({
           content={message.content}
           localPath={assetPath}
           progress={assetProgress}
+          {...(onOpenPhoto === undefined || assetPath === null
+            ? {}
+            : { onPress: () => onOpenPhoto(assetPath) })}
         />
       )
 

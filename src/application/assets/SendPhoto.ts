@@ -9,14 +9,7 @@ import { SendMessage } from '../messaging/SendMessage'
 import type { AssetStore, ImageResizer } from '../ports/AssetTransfer'
 import type { ConversationRepository } from '../ports/ConversationRepository'
 import type { MessageTransport } from '../ports/MessageTransport'
-import {
-  CHUNK_BYTES,
-  isSendable,
-  JPEG_QUALITY,
-  NARROW_JPEG_QUALITY,
-  NARROW_LONG_EDGE,
-  RESIZE_LONG_EDGE,
-} from './AssetChunks'
+import { CHUNK_BYTES, isSendable, PHOTO_SIZES, type PhotoSize } from './AssetChunks'
 import { ChunkSender } from './ChunkSender'
 
 /**
@@ -52,8 +45,8 @@ export interface SendPhotoInput {
   readonly conversation: Conversation
   readonly uri: string
   readonly caption?: string
-  /** 좁은 길(블루투스)로 간다. 훨씬 작게 줄인다 */
-  readonly narrow?: boolean
+  /** 얼마나 줄일까. 안 정하면 중간이다 */
+  readonly size?: PhotoSize
   /** 몇 조각 중 몇 조각이 갔나. 좁은 길에서는 소수도 온다 */
   onProgress?: (sent: number, total: number, assetId: string) => void
 }
@@ -70,11 +63,12 @@ export class SendPhoto {
 
   async execute(input: SendPhotoInput): Promise<Result<SendPhotoOutcome, DomainError>> {
     // 1. 줄인다. 원본을 그대로 보내면 사설망이 막혀 글까지 못 간다.
-    //    좁은 길이면 훨씬 더 줄인다. 안 그러면 몇 분이 걸린다.
+    //    얼마나 줄일지는 보내는 사람이 고른다. 블루투스에서는 크기가 곧 시간이다.
+    const chosen = PHOTO_SIZES[input.size ?? 'medium']
     const resized = await this.deps.resizer.resize(
       input.uri,
-      input.narrow === true ? NARROW_LONG_EDGE : RESIZE_LONG_EDGE,
-      input.narrow === true ? NARROW_JPEG_QUALITY : JPEG_QUALITY,
+      chosen.longEdge,
+      chosen.quality,
     )
     if (!resized.ok) return resized
 

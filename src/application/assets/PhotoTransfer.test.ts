@@ -140,20 +140,20 @@ describe('사진 보내기', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('좁은 길이면 훨씬 작게 줄인다', async () => {
+  it('작게 고르면 훨씬 작게 줄인다', async () => {
     // 블루투스는 초당 3KB 남짓이다. 1600px 짜리는 몇 분이 걸린다.
     await sender.execute({
       author: ME,
       conversation,
       uri: 'file:///photo.jpg',
-      narrow: true,
+      size: 'small',
     })
 
     expect(resizer.lastLongEdge).toBe(NARROW_LONG_EDGE)
     expect(resizer.lastQuality).toBe(NARROW_JPEG_QUALITY)
   })
 
-  it('넓은 길이면 평소 크기로 줄인다', async () => {
+  it('안 고르면 중간 크기로 줄인다', async () => {
     await send()
 
     expect(resizer.lastLongEdge).toBe(RESIZE_LONG_EDGE)
