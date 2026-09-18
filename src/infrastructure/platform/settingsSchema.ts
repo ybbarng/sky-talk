@@ -20,7 +20,7 @@ export const profileSchema = z.object({
   // 처음에는 비어 있다. 첫 실행 안내에서 채운다.
   displayName: z.string().max(20),
   character: z.enum(characterIds),
-  pairingCode: z.string().length(6),
+  // 예전 설정에는 여섯 자리 코드(pairingCode)가 남아 있다. 모르는 값은 버리고 읽는다.
   /** 핫스팟을 연 쪽인가 붙는 쪽인가 */
   role: z.enum(['host', 'guest']),
   /**

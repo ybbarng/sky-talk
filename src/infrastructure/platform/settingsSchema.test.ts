@@ -70,6 +70,7 @@ describe('예전 프로필 읽기', () => {
     peerId: 'peer-ybbarng1',
     displayName: '나',
     character: 'orion',
+    // 예전 앱이 남긴 여섯 자리 코드. 지금은 안 쓰지만 있어도 읽혀야 한다
     pairingCode: '482913',
     role: 'host',
   }
@@ -85,12 +86,12 @@ describe('예전 프로필 읽기', () => {
     expect(profileSchema.parse(olderProfile).peerNickname).toBeUndefined()
   })
 
-  it('짝 코드가 여섯 자리가 아니면 버린다', () => {
-    // 코드가 망가지면 상대가 우리를 못 알아본다. 기본값으로 다시
-    // 만드는 편이 낫다.
+  it('예전 앱이 남긴 코드는 무시하고 읽는다', () => {
+    // 코드 기능을 없앴다. 그 값이 망가져 있어도 설정을 통째로 버리면 안 된다.
     expect(profileSchema.safeParse({ ...olderProfile, pairingCode: '12' }).success).toBe(
-      false,
+      true,
     )
+    expect('pairingCode' in profileSchema.parse(olderProfile)).toBe(false)
   })
 })
 

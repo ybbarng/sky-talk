@@ -11,7 +11,7 @@ import { show } from '../support/screen'
  * 죽은 것과 같다. 물음표는 이 앱에서 안내를 대신하는 장치라 여기저기
  * 붙어 있고, 그만큼 갇힐 자리도 많다.
  *
- * 실제로 여섯 자리 코드 설명에서 "알겠어요" 와 닫기 단추가 둘 다 안 먹었다.
+ * 실제로 설명 창에서 "알겠어요" 와 닫기 단추가 둘 다 안 먹었다.
  * 바깥을 누르면 닫혔으니 **창 안쪽의 누름만 안 먹은 것**이다.
  *
  * (docs/09-testing.md)
@@ -23,7 +23,7 @@ const { ThemeProvider } = await import('@/presentation/theme/ThemeProvider')
 function open() {
   return show(
     <ThemeProvider>
-      <HelpTip topic="pairingCode" />
+      <HelpTip topic="linkKind" />
     </ThemeProvider>,
   )
 }

@@ -80,7 +80,6 @@ class Device {
         me: this.me,
         displayName: this.name,
         character: 'aria',
-        pairingCode: 'K7M2PX',
         appVersion: '0.1.0',
         conversation: this.conversation,
         peerId: this.peerId ?? undefined,
@@ -108,7 +107,6 @@ class Device {
           me: this.me,
           displayName: this.name,
           character: 'aria',
-          pairingCode: 'K7M2PX',
           appVersion: '0.1.0',
           conversation: this.conversation,
           hello: envelope.p,
@@ -120,7 +118,7 @@ class Device {
       }
 
       case 'hello_ack': {
-        if (envelope.p.accepted) this.peerId = envelope.p.peerId
+        this.peerId = envelope.p.peerId
         return
       }
 
@@ -287,37 +285,5 @@ describe('끊긴 동안 상대가 보낸 것 되찾기', () => {
 
     expect(iphone.peerId).toBe(ME)
     expect(android.peerId).toBe(HER)
-  })
-})
-
-describe('코드가 다른 상대', () => {
-  it('코드가 안 맞으면 받아들이지 않는다', async () => {
-    const link = linkedTransportPair()
-    const mine = new Device(ME, link[0], 1758000000000, '나')
-    const stranger = new Device(HER, link[1], 1758000900000, '모르는 사람')
-
-    // 남의 인사를 직접 만들어 보낸다
-    await link[1].send({
-      v: 1,
-      t: 'hello',
-      id: '01K5F8ZPXQ0000000000000001',
-      seq: 0,
-      ts: 1758000000000,
-      p: {
-        peerId: 'stranger-0001',
-        displayName: '남',
-        character: 'nova',
-        pairingCode: 'ZZZZZZ',
-        lastSeenSeq: 0,
-        appVersion: '0.1.0',
-      },
-    })
-
-    await mine.settle()
-
-    const acks = link[0].sentOfType('hello_ack')
-
-    expect(acks[0]?.p.accepted).toBe(false)
-    void stranger
   })
 })

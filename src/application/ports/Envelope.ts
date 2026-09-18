@@ -30,18 +30,19 @@ export interface HelloPayload {
   readonly peerId: string
   readonly displayName: string
   readonly character: CharacterId
-  readonly pairingCode: string
   /** 내가 상대에게서 마지막으로 받은 순번. 놓친 걸 바로 알아채려고 알려준다 */
   readonly lastSeenSeq: number
   readonly appVersion: string
 }
 
-export interface HelloAckPayload extends HelloPayload {
-  /** 상대를 받아들였는지. 코드가 안 맞으면 false */
-  readonly accepted: boolean
-  /** 거절한 이유. 화면에 무엇을 하면 되는지 적을 때 쓴다 */
-  readonly reason?: 'code-mismatch' | 'version-too-old' | 'unknown-peer'
-}
+/**
+ * 인사에 대한 답. 내용은 인사와 같다.
+ *
+ * 예전에는 여섯 자리 코드가 맞는지 보고 받아들일지 정했는데, 그 기능을
+ * 없앴다. 붙은 상대는 그냥 우리 둘이다. 두 사람이 쓰는 앱이고 비행기
+ * 안에서 코드를 맞추다 대화를 못 하는 편이 훨씬 나쁘다.
+ */
+export type HelloAckPayload = HelloPayload
 
 export interface MessagePayload {
   readonly messageId: string

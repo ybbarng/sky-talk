@@ -130,7 +130,6 @@ describe('모든 봉투 종류가 건너간다', () => {
           peerId: 'peer-me00000',
           displayName: '지민',
           character: 'mira',
-          pairingCode: '123456',
           lastSeenSeq: 3,
           appVersion: '0.1.0',
         },

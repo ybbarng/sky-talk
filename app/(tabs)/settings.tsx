@@ -53,12 +53,6 @@ function ConnectionSection() {
         onPress={() => router.push('/connection-detail')}
       />
       <Row
-        icon="alert"
-        label="코드로 연결하기"
-        hint="자동으로 못 찾을 때"
-        onPress={() => router.push('/pair-code')}
-      />
-      <Row
         icon="refresh"
         label="첫 실행 안내 다시 보기"
         onPress={() => {
@@ -585,17 +579,9 @@ function ConversationSection() {
 }
 
 function AboutSection() {
-  const profile = useSetupStore(s => s.profile)
-
   return (
     <Section title="이 앱에 대하여">
       <Row icon="chat" label="도움말" onPress={() => router.push('/help')} />
-      <Row
-        icon="alert"
-        label="내 코드"
-        hint={profile?.pairingCode ?? '-'}
-        onPress={() => router.push('/pair-code')}
-      />
     </Section>
   )
 }

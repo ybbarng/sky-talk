@@ -9,7 +9,6 @@ import {
   settings,
 } from '@/composition/services'
 import type { CharacterId } from '@/domain/peer/Character'
-import { generatePairingCode } from '@/domain/peer/PairingCode'
 
 /**
  * 첫 실행에서 정한 것들.
@@ -51,8 +50,6 @@ interface SetupState {
   finishOnboarding(): Promise<void>
   restartOnboarding(): Promise<void>
   rememberPeer(peer: KnownPeer): Promise<void>
-  /** 상대가 알려준 코드로 맞춘다. 코드로 연결하기에서 쓴다 */
-  adoptPairingCode(code: string): Promise<void>
 }
 
 export const useSetupStore = create<SetupState>((set, get) => ({
@@ -79,7 +76,7 @@ export const useSetupStore = create<SetupState>((set, get) => ({
   async ensureProfile() {
     if (get().profile !== null) return
 
-    // 식별자와 코드는 한 번만 만들어 계속 쓴다.
+    // 식별자는 한 번만 만들어 계속 쓴다.
     // 바뀌면 상대가 우리를 못 알아본다.
     const role: Profile['role'] = Platform.OS === 'ios' ? 'guest' : 'host'
 
@@ -88,7 +85,6 @@ export const useSetupStore = create<SetupState>((set, get) => ({
       // 이름은 첫 실행 안내에서 직접 적는다
       displayName: '',
       character: role === 'host' ? 'orion' : 'aria',
-      pairingCode: generatePairingCode(Math.random),
       role,
     })
   },
@@ -170,12 +166,6 @@ export const useSetupStore = create<SetupState>((set, get) => ({
   async rememberPeer(peer) {
     await settings.writePeer(peer)
     set({ peer })
-  },
-
-  async adoptPairingCode(code) {
-    const current = get().profile
-    if (current === null) return
-    await persistProfile(set, { ...current, pairingCode: code.toUpperCase() })
   },
 }))
 

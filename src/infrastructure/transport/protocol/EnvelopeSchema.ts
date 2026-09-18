@@ -98,21 +98,15 @@ const helloPayload = z.object({
   peerId: z.string().min(8).max(64),
   displayName: z.string().min(1).max(20),
   character: z.enum(characterIds),
-  pairingCode: z.string().length(6),
   lastSeenSeq: z.number().int().min(0),
   appVersion: z.string().min(1).max(32),
 })
 
 export const envelopeSchema = z.discriminatedUnion('t', [
   z.object({ ...header, t: z.literal('hello'), p: helloPayload }),
-  z.object({
-    ...header,
-    t: z.literal('hello_ack'),
-    p: helloPayload.extend({
-      accepted: z.boolean(),
-      reason: z.enum(['code-mismatch', 'version-too-old', 'unknown-peer']).optional(),
-    }),
-  }),
+  // 예전 앱은 여기에 코드와 받아들임 여부를 실어 보낸다. 모르는 항목은
+  // 버리고 읽으므로 그대로 붙는다.
+  z.object({ ...header, t: z.literal('hello_ack'), p: helloPayload }),
   z.object({ ...header, t: z.literal('message'), p: messagePayload }),
   z.object({
     ...header,

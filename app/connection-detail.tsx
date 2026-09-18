@@ -43,12 +43,6 @@ export default function ConnectionDetail() {
 
         <View style={{ flex: 1 }} />
 
-        <Button
-          label="코드로 연결하기"
-          tone="neutral"
-          fullWidth
-          onPress={() => router.push('/pair-code')}
-        />
         <Button label="닫기" tone="ghost" fullWidth onPress={() => router.back()} />
       </View>
     </SafeAreaView>
@@ -72,7 +66,6 @@ function Troubleshoot() {
     '두 폰이 같은 Wi-Fi 에 있나요?',
     '두 폰 다 블루투스가 켜져 있나요?',
     '비행기 모드에서도 Wi-Fi 는 따로 켜야 해요',
-    '그래도 안 되면 아래 코드로 연결해 보세요',
   ]
 
   return (

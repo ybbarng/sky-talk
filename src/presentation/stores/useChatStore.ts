@@ -79,7 +79,6 @@ interface ChatState {
   /** 상대 식별자. 인사하면서 알게 된다 */
   peerId: string | null
   /** 코드가 안 맞는 상대가 붙었다 */
-  codeMismatch: boolean
   /** 찾는 중에 무엇을 하고 있나. 화면에 보여준다 */
   discovery: DiscoveryProgress | null
   /** 오래 못 찾았다. 도움말을 보여줄 때가 됐다 */
@@ -138,7 +137,6 @@ export interface ChatDeps {
   readonly profile: {
     readonly displayName: string
     readonly character: CharacterId
-    readonly pairingCode: string
     readonly appVersion: string
   }
   /** 상대를 알게 되면 기억해 둔다 */
@@ -236,7 +234,6 @@ export const useChatStore = create<ChatState>((set, get) => {
       me: active.me,
       displayName: active.profile.displayName,
       character: active.profile.character,
-      pairingCode: active.profile.pairingCode,
       appVersion: active.profile.appVersion,
       conversation,
       peerId: get().peerId ?? undefined,
@@ -256,29 +253,20 @@ export const useChatStore = create<ChatState>((set, get) => {
         me: deps.me,
         displayName: deps.profile.displayName,
         character: deps.profile.character,
-        pairingCode: deps.profile.pairingCode,
         appVersion: deps.profile.appVersion,
         conversation,
         hello: envelope.p,
       })
 
-      if (outcome.ok && outcome.value.peer !== null) {
-        set({ peerId: outcome.value.peer.peerId, codeMismatch: false })
+      if (outcome.ok) {
+        set({ peerId: outcome.value.peer.peerId })
         deps.onPeerKnown?.(outcome.value.peer)
-      }
-      if (outcome.ok && !outcome.value.accepted) {
-        // 코드가 안 맞는다. 다른 사람이 붙었다는 뜻이다.
-        set({ codeMismatch: true })
       }
       return
     }
 
     if (envelope.t === 'hello_ack') {
-      if (!envelope.p.accepted) {
-        set({ codeMismatch: true })
-        return
-      }
-      set({ peerId: envelope.p.peerId, codeMismatch: false })
+      set({ peerId: envelope.p.peerId })
       deps.onPeerKnown?.({
         peerId: envelope.p.peerId,
         displayName: envelope.p.displayName,
@@ -406,7 +394,6 @@ export const useChatStore = create<ChatState>((set, get) => {
     peerBattery: null,
     pendingCount: 0,
     peerId: null,
-    codeMismatch: false,
     discovery: null,
     searchingTooLong: false,
     everConnected: false,

@@ -34,7 +34,6 @@ interface Options {
   readonly role: 'host' | 'guest'
   readonly peerAddress: string | undefined
   readonly name: string
-  readonly code: string
 }
 
 function parseArgs(): Options {
@@ -48,7 +47,6 @@ function parseArgs(): Options {
     role: args.includes('--host') ? 'host' : 'guest',
     peerAddress: readFlag('--to'),
     name: readFlag('--name') ?? '맥',
-    code: (readFlag('--code') ?? 'TESTME').toUpperCase(),
   }
 }
 
@@ -121,14 +119,13 @@ function sendHello(socket: Socket, options: Options): void {
       peerId: 'peer-simulator',
       displayName: options.name,
       character: 'nova',
-      pairingCode: options.code,
       lastSeenSeq: 0,
       appVersion: '0.1.0-sim',
     },
   })
 }
 
-function describe(envelope: Envelope, options: Options): string | null {
+function describe(envelope: Envelope): string | null {
   switch (envelope.t) {
     case 'message': {
       const content = envelope.p.content
@@ -136,11 +133,9 @@ function describe(envelope: Envelope, options: Options): string | null {
       return `📩  [${content.kind}]`
     }
     case 'hello':
-      return `👋  ${envelope.p.displayName} 이(가) 인사했다 (코드 ${envelope.p.pairingCode}${
-        envelope.p.pairingCode === options.code ? ' · 일치' : ' · 안 맞음!'
-      })`
+      return `👋  ${envelope.p.displayName} 이(가) 인사했다`
     case 'hello_ack':
-      return `🤝  인사를 ${envelope.p.accepted ? '받아들였다' : '거절했다'}`
+      return `🤝  ${envelope.p.displayName} 이(가) 인사를 받았다`
     case 'ack':
       return null
     case 'read':
@@ -183,7 +178,7 @@ function attach(socket: Socket, options: Options): void {
         continue
       }
 
-      const line = describe(outcome.envelope, options)
+      const line = describe(outcome.envelope)
       if (line !== null) console.log(line)
 
       // 메시지를 받으면 앱처럼 답한다
@@ -210,10 +205,8 @@ function attach(socket: Socket, options: Options): void {
             peerId: 'peer-simulator',
             displayName: options.name,
             character: 'nova',
-            pairingCode: options.code,
             lastSeenSeq: 0,
             appVersion: '0.1.0-sim',
-            accepted: outcome.envelope.p.pairingCode === options.code,
           },
         })
       }
@@ -263,11 +256,8 @@ function main(): void {
     `  역할      ${options.role === 'host' ? '받는 쪽 (핫스팟을 연 쪽)' : '거는 쪽'}`,
   )
   console.log(`  이름      ${options.name}`)
-  console.log(`  코드      ${options.code}`)
   console.log(`  내 주소   ${myAddresses().join(', ') || '없음'}`)
   console.log('─'.repeat(52))
-  console.log('\n⚠️   폰 앱의 코드를 같은 값으로 맞춰야 합니다.')
-  console.log('    설정 → 코드로 연결하기 에서 바꿀 수 있어요.\n')
 
   if (options.role === 'host') {
     const server = createServer(socket => {

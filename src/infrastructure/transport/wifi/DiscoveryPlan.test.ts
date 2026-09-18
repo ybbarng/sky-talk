@@ -113,7 +113,7 @@ describe('얼마나 걸릴지 어림하기', () => {
   })
 
   it('훑어보기가 코드 입력을 권하는 시간보다 짧다', () => {
-    // 훑어보기도 못 끝냈는데 "코드로 연결하세요"가 뜨면 안 된다
+    // 훑어보기도 못 끝냈는데 "잘 안 되나요" 가 뜨면 안 된다
     expect(estimateScanMillis(253)).toBeLessThan(OFFER_MANUAL_AFTER_MS)
   })
 })

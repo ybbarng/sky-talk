@@ -34,8 +34,6 @@ export class WifiPeerDiscovery implements PeerDiscovery {
   private readonly foundHandlers = new Set<(found: FoundPeer) => void>()
   private readonly progressHandlers = new Set<(progress: DiscoveryProgress) => void>()
 
-  constructor(private readonly options: DiscoveryOptions = {}) {}
-
   async start(): Promise<Result<void, DomainError>> {
     if (this.running) return ok(undefined)
     this.running = true
@@ -75,7 +73,7 @@ export class WifiPeerDiscovery implements PeerDiscovery {
       this.report({ method: step.method, phase: 'failed' })
     }
 
-    // 전부 실패했다. 화면에서 "코드로 연결하기"를 권한다.
+    // 전부 실패했다. 위에서 잠시 뒤 다시 찾는다.
     this.running = false
     return err(domainError('not-found', '상대를 찾지 못했다', 'discovery'))
   }
@@ -157,7 +155,6 @@ export class WifiPeerDiscovery implements PeerDiscovery {
         app: 'skywalkie',
         v: 1,
         port: ports.message,
-        code: this.options.pairingCode ?? '',
       })
 
       let attempts = 0
@@ -231,9 +228,4 @@ function looksLikeUs(text: string): boolean {
   } catch {
     return false
   }
-}
-
-export interface DiscoveryOptions {
-  /** 외칠 때 같이 보낸다. 받는 쪽이 우리 둘인지 가릴 수 있다 */
-  readonly pairingCode?: string
 }

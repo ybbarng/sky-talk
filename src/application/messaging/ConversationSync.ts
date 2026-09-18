@@ -58,7 +58,6 @@ export class ConversationSync {
         peerId: input.me,
         displayName: input.displayName,
         character: input.character,
-        pairingCode: input.pairingCode,
         lastSeenSeq,
         appVersion: input.appVersion,
       },
@@ -74,9 +73,6 @@ export class ConversationSync {
     const theirs = peerId(input.hello.peerId)
     if (!theirs.ok) return theirs
 
-    const codeMatches =
-      input.hello.pairingCode.toUpperCase() === input.pairingCode.toUpperCase()
-
     await this.transport.send({
       v: PROTOCOL_VERSION,
       t: 'hello_ack',
@@ -87,17 +83,10 @@ export class ConversationSync {
         peerId: input.me,
         displayName: input.displayName,
         character: input.character,
-        pairingCode: input.pairingCode,
         lastSeenSeq: input.conversation.highestSeqFrom(theirs.value),
         appVersion: input.appVersion,
-        accepted: codeMatches,
       },
     })
-
-    if (!codeMatches) {
-      // 우리 둘이 아니다. 대화를 열지 않는다.
-      return ok({ accepted: false, peer: null, requestedSeqs: [], resent: 0 })
-    }
 
     // **여기가 핵심이다.** 상대가 "네 것을 3번까지 받았다"고 알려줬다.
     // 내가 5번까지 보냈다면 4, 5를 다시 보내야 한다.
@@ -115,7 +104,6 @@ export class ConversationSync {
     const requested = await this.requestMissing(input.conversation, theirs.value)
 
     return ok({
-      accepted: true,
       peer: {
         peerId: input.hello.peerId,
         displayName: input.hello.displayName,
@@ -314,7 +302,6 @@ export interface GreetInput {
   readonly me: string
   readonly displayName: string
   readonly character: CharacterId
-  readonly pairingCode: string
   readonly appVersion: string
   readonly conversation: Conversation
   /** 상대 식별자. 아직 모르면 없다 */
@@ -326,12 +313,11 @@ export interface OnHelloInput extends Omit<GreetInput, 'peerId'> {
 }
 
 export interface HelloOutcome {
-  readonly accepted: boolean
   readonly peer: {
     readonly peerId: string
     readonly displayName: string
     readonly character: CharacterId
-  } | null
+  }
   /** 내가 못 받아서 달라고 한 순번들 */
   readonly requestedSeqs: readonly number[]
   /** 상대가 못 받아서 내가 다시 보낸 개수 */

@@ -36,7 +36,7 @@ export const typography: Record<TypographyName, TypographyStyle> = {
   caption: { fontSize: 13, fontWeight: '400', lineHeight: 18 },
   /** 작은 표지, 버튼 안 글자 */
   label: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
-  /** 여섯 자리 코드, IP 주소. 자리가 흔들리지 않아야 읽어주기 좋다 */
+  /** IP 주소 같은 것. 자리가 흔들리지 않아야 읽어주기 좋다 */
   mono: {
     fontSize: 16,
     fontWeight: '600',

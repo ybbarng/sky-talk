@@ -139,9 +139,7 @@ export class WifiLink implements MessageTransport {
 
     let found: string | null = null
 
-    const discovery = new WifiPeerDiscovery({
-      pairingCode: this.options.pairingCode,
-    })
+    const discovery = new WifiPeerDiscovery()
 
     const stopFound = discovery.onFound(peer => {
       found = peer.address
@@ -210,8 +208,6 @@ export class WifiLink implements MessageTransport {
 }
 
 export interface WifiLinkOptions {
-  /** 이미 아는 주소. 코드로 연결하기에서 넘어온다 */
+  /** 이미 아는 주소. 시험할 때 넘긴다 */
   readonly peerAddress?: string
-  /** 외칠 때 같이 보낸다 */
-  readonly pairingCode?: string
 }

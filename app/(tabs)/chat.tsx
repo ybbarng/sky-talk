@@ -65,7 +65,6 @@ export default function Chat() {
   const start = useChatStore(s => s.start)
   const rememberPeer = useSetupStore(s => s.rememberPeer)
   const setFlight = useSetupStore(s => s.setFlight)
-  const codeMismatch = useChatStore(s => s.codeMismatch)
   const stop = useChatStore(s => s.stop)
   const send = useChatStore(s => s.send)
   const loadOlder = useChatStore(s => s.loadOlder)
@@ -110,7 +109,6 @@ export default function Chat() {
     void (async () => {
       const container = await createContainer({
         role: profile.role,
-        pairingCode: profile.pairingCode,
       })
       if (!container.ok || cancelled) return
 
@@ -126,7 +124,6 @@ export default function Chat() {
         profile: {
           displayName: profile.displayName,
           character: profile.character,
-          pairingCode: profile.pairingCode,
           appVersion: APP_VERSION,
         },
         // 상대를 알게 되면 기억해 둔다. 다음에 켤 때 이름과 캐릭터가 바로 뜬다.
@@ -332,8 +329,6 @@ export default function Chat() {
         announceDisconnect={announceDisconnect}
         onPress={() => router.push('/connection-detail')}
       />
-
-      {codeMismatch && <CodeMismatchNotice />}
 
       <BatteryNotice
         mine={battery.level}
@@ -651,25 +646,6 @@ function BatteryNotice({
       <Icon name="alert" size={14} color="textMuted" />
       <Text variant="caption" color="textMuted">
         {note}
-      </Text>
-    </View>
-  )
-}
-
-/** 코드가 안 맞는 상대가 붙었다. 우리 둘이 아니라는 뜻이다 */
-function CodeMismatchNotice() {
-  const theme = useTheme()
-
-  return (
-    <View
-      style={{
-        backgroundColor: theme.colors.danger,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.sm,
-      }}
-    >
-      <Text variant="caption" style={{ color: theme.colors.onStatus }}>
-        코드가 다른 상대가 붙었어요. 설정 → 코드로 연결하기에서 맞춰주세요.
       </Text>
     </View>
   )

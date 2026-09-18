@@ -2,10 +2,8 @@ import { router } from 'expo-router'
 import { Linking, Platform, View } from 'react-native'
 import { homeHotspot } from '@/composition/hotspot'
 import { notifier } from '@/composition/services'
-import { formatForDisplay, pairingCode } from '@/domain/peer/PairingCode'
 import { Button } from '@/presentation/components/Button'
 import { Card } from '@/presentation/components/Card'
-import { HelpTip } from '@/presentation/components/HelpTip'
 import { Icon } from '@/presentation/components/Icon'
 import { StepLayout } from '@/presentation/components/onboarding/StepLayout'
 import { Text } from '@/presentation/components/Text'
@@ -97,8 +95,6 @@ export default function Connect() {
           </View>
         </View>
       </Card>
-
-      {profile !== null && <PairingCodeCard code={profile.pairingCode} role={role} />}
     </StepLayout>
   )
 }
@@ -187,50 +183,6 @@ function StepNumber({ value }: { value: number }) {
         {value}
       </Text>
     </View>
-  )
-}
-
-/**
- * 여섯 자리 코드.
- *
- * 화면에서 가장 크게 띄운다. **말을 못 해도 화면을 보여주면 되도록**
- * 한 손으로 들어 보여줄 수 있는 크기로 그린다.
- */
-function PairingCodeCard({ code, role }: { code: string; role: 'host' | 'guest' }) {
-  const theme = useTheme()
-  const parsed = pairingCode(code)
-  const display = parsed.ok ? formatForDisplay(parsed.value) : code
-
-  return (
-    <Card raised style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <Text variant="heading">우리 둘만의 코드</Text>
-        <HelpTip topic="pairingCode" />
-      </View>
-
-      <Text
-        variant="display"
-        style={{
-          color: theme.colors.me,
-          letterSpacing: 6,
-          fontVariant: ['tabular-nums'],
-        }}
-      >
-        {display}
-      </Text>
-
-      <Text variant="caption" color="textMuted" align="center">
-        {role === 'host'
-          ? '이 숫자를 상대에게 보여주세요. 같아야 연결됩니다.'
-          : '상대 화면의 숫자와 같은지 확인하세요.'}
-      </Text>
-    </Card>
   )
 }
 

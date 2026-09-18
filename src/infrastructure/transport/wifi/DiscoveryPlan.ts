@@ -37,7 +37,7 @@ export const BROADCAST_ATTEMPTS = 10
 export const BROADCAST_INTERVAL_MS = 1000
 
 /**
- * 이만큼 지나도 못 찾으면 "코드로 연결하기"를 화면에 띄운다.
+ * 이만큼 지나도 못 찾으면 화면에 "잘 안 되나요" 안내를 띄운다.
  * 빙글빙글 도는 표시만 두면 사용자는 앱이 멈춘 줄 안다.
  */
 export const OFFER_MANUAL_AFTER_MS = 15_000

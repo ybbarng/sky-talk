@@ -90,7 +90,6 @@ export async function createContainer(
   const transport = new CompositeTransport([
     new WifiLink(options.role, {
       peerAddress: options.peerAddress,
-      pairingCode: options.pairingCode,
     }),
     new BleMessageTransport(options.role),
   ])
@@ -125,10 +124,8 @@ export async function createContainer(
 
 export interface ContainerOptions {
   readonly role: ConnectionRole
-  /** 이미 아는 주소. 코드로 연결하기에서 넘어온다 */
+  /** 이미 아는 주소. 시험할 때 넘긴다 */
   readonly peerAddress?: string
-  /** 우리 둘만의 코드. 외칠 때 같이 보낸다 */
-  readonly pairingCode?: string
 }
 
 /** 이미 만들어 둔 것. 없으면 null */

@@ -33,7 +33,6 @@ const android = new Device(
     me: 'peer-ybbarng1' as PeerId,
     displayName: '나',
     character: 'orion',
-    pairingCode: '482913',
     peerNickname: '여자친구',
   },
   net,
@@ -46,7 +45,6 @@ const iphone = new Device(
     me: 'peer-jimin0001' as PeerId,
     displayName: '지민',
     character: 'mira',
-    pairingCode: '482913',
     peerNickname: '남자친구',
   },
   net,
@@ -319,7 +317,6 @@ function renderPhone(device: Device): string {
   return renderStatusbar(device)
     + renderLinkbar(device)
     + (live ? renderFlight(device) : '')
-    + (device.codeMismatch ? '<div class="notice bad">코드가 다른 상대가 붙었어요</div>' : '')
     + (live ? renderHead(device) : '')
     + (live ? renderLog(device) + renderDrawer(device) + renderComposer(device)
             : renderConnecting(device))

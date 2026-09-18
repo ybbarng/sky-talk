@@ -39,7 +39,6 @@ export interface DeviceProfile {
   readonly me: PeerId
   readonly displayName: string
   readonly character: CharacterId
-  readonly pairingCode: string
   /** 이 폰의 주인이 상대를 뭐라고 부르는가. 첫 실행 안내에서 적는다 */
   readonly peerNickname: string
 }
@@ -59,7 +58,6 @@ export class Device {
   peerId: PeerId | null = null
   peerName: string | null = null
   peerCharacter: CharacterId | null = null
-  codeMismatch = false
 
   private readonly queue = new SerialQueue()
   private readonly sendMessage: SendMessage
@@ -229,7 +227,6 @@ export class Device {
         me: this.profile.me,
         displayName: this.profile.displayName,
         character: this.profile.character,
-        pairingCode: this.profile.pairingCode,
         appVersion: '0.1.0',
         conversation: this.conversation,
         ...(this.peerId === null ? {} : { peerId: this.peerId }),
@@ -294,13 +291,12 @@ export class Device {
         me: this.profile.me,
         displayName: this.profile.displayName,
         character: this.profile.character,
-        pairingCode: this.profile.pairingCode,
         appVersion: '0.1.0',
         hello: envelope.p,
         conversation: this.conversation,
       })
 
-      if (outcome.ok) this.codeMismatch = !outcome.value.accepted
+      void outcome
       await this.refresh()
       return
     }
@@ -309,7 +305,6 @@ export class Device {
       this.peerId = envelope.p.peerId as PeerId
       this.peerName = envelope.p.displayName
       this.peerCharacter = envelope.p.character
-      this.codeMismatch = !envelope.p.accepted
       this.onChange?.()
       return
     }
