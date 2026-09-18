@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
-import { View } from 'react-native'
-import { progress, remainingMs, remainingWords } from '@/domain/flight/FlightTimer'
+import { Pressable, View } from 'react-native'
+import {
+  elapsedWords,
+  progress,
+  remainingMs,
+  remainingWords,
+} from '@/domain/flight/FlightTimer'
 import { useTheme } from '../../theme/ThemeProvider'
 import { Icon } from '../Icon'
 import { Text } from '../Text'
@@ -39,6 +44,8 @@ const TICK_MS = 60_000
 export function FlightBar({ arrivesAt, totalMs }: FlightBarProps) {
   const theme = useTheme()
   const [now, setNow] = useState(() => Date.now())
+  // 글을 누르면 "출발한 지" 로 바뀐다. 다시 누르면 돌아온다.
+  const [showElapsed, setShowElapsed] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
@@ -115,9 +122,18 @@ export function FlightBar({ arrivesAt, totalMs }: FlightBarProps) {
         가로 자리를 비행기에 맞추면 끝에서 글이 잘린다. 그래서 글은
         **가운데 고정**이고 비행기만 움직인다.
       */}
-      <Text variant="caption" color={arrived ? 'success' : 'textMuted'} align="center">
-        {remainingWords(left)}
-      </Text>
+      <Pressable
+        onPress={() => setShowElapsed(on => !on)}
+        accessibilityRole="button"
+        accessibilityLabel={
+          showElapsed ? '남은 시간 보기' : '출발한 지 얼마나 됐는지 보기'
+        }
+        hitSlop={8}
+      >
+        <Text variant="caption" color={arrived ? 'success' : 'textMuted'} align="center">
+          {showElapsed ? elapsedWords(left, totalMs) : remainingWords(left)}
+        </Text>
+      </Pressable>
     </View>
   )
 }

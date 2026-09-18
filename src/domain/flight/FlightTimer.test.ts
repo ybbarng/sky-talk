@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  elapsedWords,
   fromDepartureAndArrival,
   fromHoursAndMinutes,
   hasArrived,
@@ -304,5 +305,32 @@ describe('시와 분을 하루 안의 분으로', () => {
     expect(minuteOfDay(12, 60)).toBeNull()
     expect(minuteOfDay(-1, 0)).toBeNull()
     expect(minuteOfDay(1.5, 0)).toBeNull()
+  })
+})
+
+describe('출발한 지 얼마나 됐나', () => {
+  const HOUR = 60 * 60_000
+
+  it('남은 시간과 전체 길이에서 센다', () => {
+    expect(elapsedWords(2 * HOUR + 40 * 60_000, 4 * HOUR)).toBe(
+      '출발한 지 1시간 20분 됐어요',
+    )
+  })
+
+  it('딱 떨어지면 하나만 적는다', () => {
+    expect(elapsedWords(3 * HOUR, 4 * HOUR)).toBe('출발한 지 1시간 됐어요')
+    expect(elapsedWords(4 * HOUR - 25 * 60_000, 4 * HOUR)).toBe('출발한 지 25분 됐어요')
+  })
+
+  it('아직 안 떴으면 그렇다고 한다', () => {
+    expect(elapsedWords(4 * HOUR, 4 * HOUR)).toBe('아직 출발 전이에요')
+  })
+
+  it('1분 안이면 방금 출발했다고 한다', () => {
+    expect(elapsedWords(4 * HOUR - 30_000, 4 * HOUR)).toBe('방금 출발했어요')
+  })
+
+  it('다 되면 도착했다고 한다', () => {
+    expect(elapsedWords(0, 4 * HOUR)).toBe('도착했어요')
   })
 })

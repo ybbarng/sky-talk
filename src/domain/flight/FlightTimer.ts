@@ -166,3 +166,25 @@ export function minuteOfDay(hours: number, minutes: number): number | null {
 function isMinuteOfDay(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value < MINUTES_IN_DAY
 }
+
+/**
+ * 출발한 지 얼마나 됐나를 사람이 읽는 말로.
+ *
+ * 남은 시간 글을 누르면 이것으로 바뀐다. 다시 누르면 돌아간다.
+ * 아직 안 떴으면(진행이 0) "아직 출발 전이에요".
+ */
+export function elapsedWords(leftMs: number, totalMs: number): string {
+  const elapsed = Math.max(0, totalMs - leftMs)
+  if (totalMs <= 0 || elapsed <= 0) return '아직 출발 전이에요'
+  if (leftMs <= 0) return '도착했어요'
+  if (elapsed < 60_000) return '방금 출발했어요'
+
+  const totalMinutes = Math.floor(elapsed / 60_000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0) return `출발한 지 ${minutes}분 됐어요`
+  if (minutes === 0) return `출발한 지 ${hours}시간 됐어요`
+
+  return `출발한 지 ${hours}시간 ${minutes}분 됐어요`
+}
