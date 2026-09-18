@@ -1,8 +1,10 @@
-import { View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Pressable, View } from 'react-native'
 import type { Message } from '@/domain/message/Message'
 import type { CharacterId } from '@/domain/peer/Character'
 import type { PeerId } from '@/domain/peer/PeerId'
 import { Sticker } from '../../characters/Sticker'
+import { stickerMeaning } from '../../copy/stickers'
 import { useTheme } from '../../theme/ThemeProvider'
 import { DoodleRenderer } from '../doodle/DoodleRenderer'
 import { Icon } from '../Icon'
@@ -165,10 +167,9 @@ function BubbleContent({
 
     case 'sticker':
       return (
-        <Sticker
+        <StickerWithMeaning
           character={message.content.character as CharacterId}
           pose={message.content.pose}
-          size={120}
         />
       )
 
@@ -256,4 +257,51 @@ function formatTime(at: Date): string {
   const displayHours = hours % 12 === 0 ? 12 : hours % 12
 
   return `${period} ${displayHours}:${minutes}`
+}
+
+/**
+ * 대화 안의 이모티콘. **길게 누르면 무슨 뜻인지 뜬다.**
+ *
+ * 서랍에서 고를 때만 뜻이 보였는데, 받은 쪽은 서랍을 열 일이 없다.
+ * 팔짱 낀 게 "안 돼" 인지 "추워" 인지 받은 사람이 더 헷갈린다.
+ */
+function StickerWithMeaning({
+  character,
+  pose,
+}: {
+  character: CharacterId
+  pose: Parameters<typeof stickerMeaning>[0]
+}) {
+  const theme = useTheme()
+  const [showing, setShowing] = useState(false)
+
+  useEffect(() => {
+    if (!showing) return
+    const timer = setTimeout(() => setShowing(false), 3_000)
+    return () => clearTimeout(timer)
+  }, [showing])
+
+  return (
+    <Pressable
+      onLongPress={() => setShowing(true)}
+      accessibilityRole="button"
+      accessibilityLabel={`이모티콘, ${stickerMeaning(pose)}`}
+      accessibilityHint="길게 누르면 무슨 뜻인지 보여요"
+      style={{ alignItems: 'center', gap: theme.spacing.xs }}
+    >
+      <Sticker character={character} pose={pose} size={120} />
+      {showing && (
+        <View
+          style={{
+            backgroundColor: theme.colors.surfaceRaised,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: theme.spacing.md,
+            paddingVertical: 4,
+          }}
+        >
+          <Text variant="caption">{stickerMeaning(pose)}</Text>
+        </View>
+      )}
+    </Pressable>
+  )
 }
