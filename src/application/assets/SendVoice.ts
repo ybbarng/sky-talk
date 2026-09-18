@@ -53,7 +53,8 @@ export interface SendVoiceInput {
   readonly base64: string
   readonly durationMs: number
   readonly byteLength: number
-  onProgress?: (sent: number, total: number) => void
+  /** 몇 조각 중 몇 조각이 갔나. 좁은 길에서는 소수도 온다 */
+  onProgress?: (sent: number, total: number, assetId: string) => void
 }
 
 export interface SendVoiceOutcome {

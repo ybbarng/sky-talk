@@ -6,7 +6,12 @@ import { FakeMessageTransport } from '@test/fakes/FakeMessageTransport'
 import { ME, startConversation } from '@test/support/factories'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Conversation } from '@/domain/message/Conversation'
-import { chunkCountFor } from './AssetChunks'
+import {
+  chunkCountFor,
+  NARROW_JPEG_QUALITY,
+  NARROW_LONG_EDGE,
+  RESIZE_LONG_EDGE,
+} from './AssetChunks'
 import { ReceiveAsset } from './ReceiveAsset'
 import { SendPhoto } from './SendPhoto'
 
@@ -133,6 +138,25 @@ describe('사진 보내기', () => {
     const result = await send()
 
     expect(result.ok).toBe(false)
+  })
+
+  it('좁은 길이면 훨씬 작게 줄인다', async () => {
+    // 블루투스는 초당 3KB 남짓이다. 1600px 짜리는 몇 분이 걸린다.
+    await sender.execute({
+      author: ME,
+      conversation,
+      uri: 'file:///photo.jpg',
+      narrow: true,
+    })
+
+    expect(resizer.lastLongEdge).toBe(NARROW_LONG_EDGE)
+    expect(resizer.lastQuality).toBe(NARROW_JPEG_QUALITY)
+  })
+
+  it('넓은 길이면 평소 크기로 줄인다', async () => {
+    await send()
+
+    expect(resizer.lastLongEdge).toBe(RESIZE_LONG_EDGE)
   })
 
   it('줄이지 못하면 보내지 않는다', async () => {

@@ -62,6 +62,7 @@ export class WifiLink implements MessageTransport {
   }
 
   async send(envelope: Envelope): Promise<Result<void, DomainError>> {
+    // Wi-Fi 는 봉투 하나가 순식간이라 진행을 알릴 것이 없다
     return this.inner.send(envelope)
   }
 

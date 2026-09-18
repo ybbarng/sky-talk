@@ -139,7 +139,7 @@ function fakeDevice() {
       return { remove: () => undefined }
     },
     cancelConnection: async () => undefined,
-    writeCharacteristicWithoutResponseForService: async () => undefined,
+    writeCharacteristicWithResponseForService: async () => undefined,
     /** 시험이 끊는다 */
     drop: () => onDisconnected?.(),
   }

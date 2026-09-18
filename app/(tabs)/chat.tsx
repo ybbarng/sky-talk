@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { narrowSeconds } from '@/application/assets/AssetChunks'
 import { createContainer, currentContainer } from '@/composition/container'
 import { startFlight } from '@/domain/flight/FlightTimer'
 import type { Message } from '@/domain/message/Message'
@@ -78,6 +79,9 @@ export default function Chat() {
   const recording = useChatStore(s => s.recording)
   const startRecording = useChatStore(s => s.startRecording)
   const stopRecordingAndSend = useChatStore(s => s.stopRecordingAndSend)
+  const pendingVoice = useChatStore(s => s.pendingVoice)
+  const sendPendingVoice = useChatStore(s => s.sendPendingVoice)
+  const discardPendingVoice = useChatStore(s => s.discardPendingVoice)
   const cancelRecording = useChatStore(s => s.cancelRecording)
   const playingVoice = useChatStore(s => s.playingVoice)
   const playVoice = useChatStore(s => s.playVoice)
@@ -99,6 +103,9 @@ export default function Chat() {
   const call = useCallStore()
   const preferences = useSetupStore(s => s.preferences)
   const [stickersOpen, setStickersOpen] = useState(false)
+  // 블루투스로 사진을 보내려 할 때 어디서 고를지 들고 있다가, 사용자가 좋다고 하면 연다
+  const [narrowPhoto, setNarrowPhoto] = useState<'library' | 'camera' | null>(null)
+  const narrowLink = connection?.link === 'ble'
 
   // 이어져 있는 동안은 지켜볼 필요가 없다. 블루투스가 꺼지면 어차피 끊긴다.
   // 끊겼을 때만 보면서 **왜 끊겼는지**를 알아낸다.
@@ -428,6 +435,30 @@ export default function Chat() {
           />
         )}
 
+        {narrowPhoto !== null && (
+          <NarrowLinkPrompt
+            title="블루투스라 사진을 작게 줄여서 보내요"
+            detail="화질이 떨어지고 30초쯤 걸릴 수 있어요. 집에서 Wi-Fi 로 이으면 원래 크기로 보낼 수 있어요."
+            accept="작게 줄여 보내기"
+            onAccept={() => {
+              const from = narrowPhoto
+              setNarrowPhoto(null)
+              void sendPhoto(from, undefined, true)
+            }}
+            onCancel={() => setNarrowPhoto(null)}
+          />
+        )}
+
+        {pendingVoice !== null && (
+          <NarrowLinkPrompt
+            title="블루투스라 음성이 천천히 가요"
+            detail={`${Math.round(pendingVoice.durationMs / 1000)}초 녹음이 약 ${narrowSeconds(pendingVoice.byteLength)}초 걸려요. 그동안 글은 조금 늦게 갈 수 있어요.`}
+            accept="보내기"
+            onAccept={() => void sendPendingVoice()}
+            onCancel={discardPendingVoice}
+          />
+        )}
+
         <MessageInput
           onSend={text => {
             bottom.pin()
@@ -441,8 +472,13 @@ export default function Chat() {
           onStickers={() => setStickersOpen(open => !open)}
           // 누르면 앨범, 길게 누르면 카메라.
           // 기내식이나 창밖을 바로 찍어 보낼 때가 있다.
-          onPhoto={() => void sendPhoto('library')}
-          onCamera={() => void sendPhoto('camera')}
+          // 블루투스면 먼저 얼마나 걸릴지 알리고 사용자가 고른다.
+          onPhoto={() =>
+            narrowLink ? setNarrowPhoto('library') : void sendPhoto('library')
+          }
+          onCamera={() =>
+            narrowLink ? setNarrowPhoto('camera') : void sendPhoto('camera')
+          }
           // 꾹 누르는 동안 녹음하고 손을 떼면 보낸다
           onRecordStart={() => void startRecording()}
           onRecordStop={() => void stopRecordingAndSend()}
@@ -599,7 +635,21 @@ function PeerHeader({
     >
       <Character id={peerCharacter} expression={expression} size={40} />
       <View style={{ flex: 1 }}>
-        <Text variant="bodyStrong">{name}</Text>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
+        >
+          <Text variant="bodyStrong">{name}</Text>
+          {/* 이어져 있으면 초록 점, 끊겼으면 빨간 점. 띠가 사라진 뒤에도 이것은 남는다 */}
+          <View
+            accessibilityLabel={connected ? '이어져 있어요' : '끊겨 있어요'}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: connected ? theme.colors.success : theme.colors.danger,
+            }}
+          />
+        </View>
         <Text variant="caption" color="textMuted">
           {!connected ? '연결을 기다리는 중' : typing ? '입력 중...' : '연결됨'}
         </Text>
@@ -764,4 +814,78 @@ function cannotCallBecause(
     return '통화는 아직 준비 중이에요. 블루투스로는 목소리를 나를 수 없어서 집에서 Wi-Fi 로 이었을 때만 돼요.'
   }
   return '통화는 아직 준비 중이에요.'
+}
+
+/**
+ * 좁은 길로 보내기 전에 묻는다.
+ *
+ * 블루투스는 초당 3KB 남짓이다. 사진이나 음성이 몇십 초 걸리는데, 아무
+ * 말 없이 보내면 "왜 안 가지" 싶고, 아예 막으면 "고장났나" 싶다.
+ * **얼마나 걸리는지 말하고 사용자가 고른다.**
+ */
+function NarrowLinkPrompt({
+  title,
+  detail,
+  accept,
+  onAccept,
+  onCancel,
+}: {
+  title: string
+  detail: string
+  accept: string
+  onAccept: () => void
+  onCancel: () => void
+}) {
+  const theme = useTheme()
+
+  return (
+    <View
+      style={{
+        marginHorizontal: theme.spacing.lg,
+        marginBottom: theme.spacing.sm,
+        padding: theme.spacing.md,
+        gap: theme.spacing.sm,
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.surfaceRaised,
+      }}
+    >
+      <Text variant="bodyStrong">{title}</Text>
+      <Text variant="caption" color="textMuted">
+        {detail}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+        <Pressable
+          onPress={onAccept}
+          accessibilityRole="button"
+          style={{
+            flex: 1,
+            borderRadius: theme.radius.md,
+            backgroundColor: theme.colors.me,
+            paddingVertical: theme.spacing.sm,
+            alignItems: 'center',
+          }}
+        >
+          <Text variant="label" style={{ color: theme.colors.meText }}>
+            {accept}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={onCancel}
+          accessibilityRole="button"
+          style={{
+            flex: 1,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingVertical: theme.spacing.sm,
+            alignItems: 'center',
+          }}
+        >
+          <Text variant="label">그만두기</Text>
+        </Pressable>
+      </View>
+    </View>
+  )
 }

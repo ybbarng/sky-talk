@@ -60,6 +60,7 @@ export class BleMessageTransport implements MessageTransport {
   private state = ConnectionState.idle()
   private readonly receivers = new Set<(envelope: Envelope) => void>()
   private readonly watchers = new Set<(state: ConnectionState) => void>()
+  private readonly receiveProgressWatchers = new Set<(fraction: number) => void>()
   private readonly reassembler = new Reassembler()
   private readonly subscriptions: Array<{ remove(): void }> = []
 
@@ -215,7 +216,10 @@ export class BleMessageTransport implements MessageTransport {
     this.subscriptions.length = 0
   }
 
-  async send(envelope: Envelope): Promise<Result<void, DomainError>> {
+  async send(
+    envelope: Envelope,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Result<void, DomainError>> {
     // **좁은 길을 실제 대화에 양보한다.** 입력 중 표시와 사진 조각은
     // 여기로 안 보낸다.
     if (!worthSendingOnNarrowLink(envelope.t)) return ok(undefined)
@@ -236,6 +240,8 @@ export class BleMessageTransport implements MessageTransport {
       if (!sent) {
         return err(domainError('not-found', '블루투스로 보내지 못했다', 'ble'))
       }
+      // 사진 조각 하나가 몇백 조각이라 이걸 안 알리면 화면이 한참 멈춘다
+      onProgress?.((part.index + 1) / part.total)
     }
 
     return ok(undefined)
@@ -249,6 +255,11 @@ export class BleMessageTransport implements MessageTransport {
   onStateChange(handler: (state: ConnectionState) => void): Unsubscribe {
     this.watchers.add(handler)
     return () => this.watchers.delete(handler)
+  }
+
+  onReceiveProgress(handler: (fraction: number) => void): Unsubscribe {
+    this.receiveProgressWatchers.add(handler)
+    return () => this.receiveProgressWatchers.delete(handler)
   }
 
   currentState(): ConnectionState {
@@ -532,7 +543,10 @@ export class BleMessageTransport implements MessageTransport {
       }
 
       if (this.device === null) return false
-      await this.device.writeCharacteristicWithoutResponseForService(
+      // **응답을 받는 쓰기다.** 응답 없는 쓰기는 상대 버퍼가 차면 조용히
+      // 버려지는데, 조각 하나가 빠지면 봉투가 통째로 안 모인다. 사진을
+      // 나르기 시작하면서 바꿨다. 느려도 빠지지 않는 쪽이 낫다.
+      await this.device.writeCharacteristicWithResponseForService(
         BLE_UUIDS.service,
         BLE_UUIDS.inbox,
         base64,
@@ -551,7 +565,20 @@ export class BleMessageTransport implements MessageTransport {
     if (!part.ok) return
 
     const joined = this.reassembler.accept(part.value, Date.now())
-    if (joined === null) return
+    if (joined === null) {
+      // 아직 모으는 중. 받는 쪽 화면이 퍼센트를 그릴 수 있게 알린다.
+      const fill = this.reassembler.fill(part.value.bundle)
+      if (fill !== null) {
+        for (const watcher of this.receiveProgressWatchers) {
+          try {
+            watcher(fill)
+          } catch {
+            // 듣는 쪽 잘못이다
+          }
+        }
+      }
+      return
+    }
 
     const outcome = decodeEnvelope(new TextDecoder().decode(joined))
     // 모르는 봉투가 와도 끊지 않는다. 상대가 새 버전일 수 있다.

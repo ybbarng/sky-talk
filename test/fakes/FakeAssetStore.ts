@@ -93,12 +93,17 @@ export class FakeImageResizer implements ImageResizer {
   byteLength = CHUNK_BYTES * 3 + 500
   failResize = false
   failPreview = false
+  /** 마지막으로 어떤 크기·화질로 줄이라고 했나. 좁은 길에서 더 줄이는지 본다 */
+  lastLongEdge: number | null = null
+  lastQuality: number | null = null
 
   async resize(
     uri: string,
-    _longEdge: number,
-    _quality: number,
+    longEdge: number,
+    quality: number,
   ): Promise<Result<ResizedImage, DomainError>> {
+    this.lastLongEdge = longEdge
+    this.lastQuality = quality
     if (this.failResize) {
       return err(domainError('invalid-value', '줄이지 못했다', 'photo'))
     }

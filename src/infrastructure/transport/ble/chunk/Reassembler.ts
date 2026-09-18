@@ -61,6 +61,13 @@ export class Reassembler {
     }
   }
 
+  /** 이 묶음이 얼마나 찼나. 0~1. 모르는 묶음이면 null */
+  fill(bundle: number): number | null {
+    const pending = this.bundles.get(bundle)
+    if (pending === undefined || pending.total === 0) return null
+    return pending.parts.size / pending.total
+  }
+
   /** 아직 모으는 중인 묶음 수. 시험과 화면에서 본다 */
   pendingCount(): number {
     return this.bundles.size

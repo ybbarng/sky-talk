@@ -30,8 +30,24 @@ export interface MessageTransport {
    *
    * 실패를 예외로 던지지 않는다. 연결이 끊기는 건 이 앱에서 예외가 아니라
    * 늘 있는 일이라, 부르는 쪽이 반드시 다루게 만든다.
+   *
+   * `onProgress` 는 **봉투 하나가 얼마나 나갔는지** 0~1 로 알린다. 좁은
+   * 길(블루투스)은 봉투 하나를 몇백 조각으로 잘라 몇십 초에 걸쳐 보내므로,
+   * 사진 조각 단위로만 세면 화면의 퍼센트가 한참 멈춰 있다. 넓은 길은
+   * 안 불러도 된다.
    */
-  send(envelope: Envelope): Promise<Result<void, DomainError>>
+  send(
+    envelope: Envelope,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Result<void, DomainError>>
+
+  /**
+   * 봉투 하나가 **들어오는 중**임을 알린다. 0~1.
+   *
+   * 좁은 길에서만 뜻이 있다. 받는 쪽 화면이 "몇 퍼센트 왔나" 를 실시간으로
+   * 그리는 데 쓴다. 없는 길은 그냥 안 부른다.
+   */
+  onReceiveProgress?(handler: (fraction: number) => void): Unsubscribe
 
   /** 봉투가 오면 알려준다 */
   onReceive(handler: (envelope: Envelope) => void): Unsubscribe

@@ -17,6 +17,11 @@ describe('좁은 길로 보낼 만한 봉투', () => {
     expect(worthSendingOnNarrowLink('presence')).toBe(false)
   })
 
+  it('사진·음성 조각은 보낸다', () => {
+    // 비행기에서는 이 길뿐이다. 막으면 영영 못 보낸다. 작게 줄이는 것은 보내는 쪽 몫이다.
+    expect(worthSendingOnNarrowLink('asset_chunk')).toBe(true)
+  })
+
   it('인사는 보낸다', () => {
     // 이걸 막으면 연결 자체가 안 된다
     expect(worthSendingOnNarrowLink('hello')).toBe(true)

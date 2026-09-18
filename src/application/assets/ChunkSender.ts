@@ -33,7 +33,7 @@ export class ChunkSender {
   async send(
     assetId: string,
     byteLength: number,
-    onProgress?: (sent: number, total: number) => void,
+    onProgress?: (sent: number, total: number, assetId: string) => void,
     only?: readonly number[],
   ): Promise<boolean> {
     const total = chunkCountFor(byteLength)
@@ -43,17 +43,22 @@ export class ChunkSender {
       const chunk = await this.deps.assets.readChunk(assetId, index)
       if (!chunk.ok) return false
 
-      const sent = await this.deps.transport.send({
-        v: 1,
-        id: this.deps.ids.next(),
-        seq: 0,
-        ts: this.deps.clock.epochMillis(),
-        t: 'asset_chunk',
-        p: { assetId, index, data: chunk.value },
-      })
+      const sent = await this.deps.transport.send(
+        {
+          v: 1,
+          id: this.deps.ids.next(),
+          seq: 0,
+          ts: this.deps.clock.epochMillis(),
+          t: 'asset_chunk',
+          p: { assetId, index, data: chunk.value },
+        },
+        // 좁은 길은 조각 하나를 몇십 초에 걸쳐 보낸다. 그 사이도 알린다.
+        fraction =>
+          onProgress?.(position + Math.min(1, fraction), indexes.length, assetId),
+      )
 
       if (!sent.ok) return false
-      onProgress?.(position + 1, indexes.length)
+      onProgress?.(position + 1, indexes.length, assetId)
     }
 
     return true

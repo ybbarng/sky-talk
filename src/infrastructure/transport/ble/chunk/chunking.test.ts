@@ -68,11 +68,12 @@ describe('자르기', () => {
   })
 
   it('너무 크면 거절한다', () => {
-    // 255조각을 넘으면 묶음 번호로 셀 수 없다.
+    // 조각 번호가 두 바이트라 그 이상은 셀 수 없다.
     // 여기서 막지 않으면 조용히 잘린 말이 간다.
-    const tooBig = bytes((MAX_PARTS + 1) * (CONSERVATIVE_MTU - HEADER_BYTES))
+    const tooBig = bytes(MAX_PARTS + 1)
 
-    expect(chunk(tooBig, 0).ok).toBe(false)
+    expect(chunk(tooBig, 0, HEADER_BYTES + 1).ok).toBe(false)
+    expect(chunk(bytes(MAX_PARTS), 0, HEADER_BYTES + 1).ok).toBe(true)
   })
 
   it('자리가 없으면 거절한다', () => {
@@ -90,15 +91,16 @@ describe('자르기', () => {
 
 describe('바이트로 바꾸고 되돌리기', () => {
   it('넣은 것이 그대로 나온다', () => {
-    const original = { bundle: 7, index: 2, total: 5, data: bytes(20, 66) }
+    // 조각 번호가 한 바이트를 넘어도 그대로 나와야 한다
+    const original = { bundle: 7, index: 300, total: 400, data: bytes(20, 66) }
 
     const decoded = decodeChunk(encodeChunk(original))
 
     expect(decoded.ok).toBe(true)
     if (!decoded.ok) return
     expect(decoded.value.bundle).toBe(7)
-    expect(decoded.value.index).toBe(2)
-    expect(decoded.value.total).toBe(5)
+    expect(decoded.value.index).toBe(300)
+    expect(decoded.value.total).toBe(400)
     expect(Array.from(decoded.value.data)).toEqual(Array.from(original.data))
   })
 
@@ -108,12 +110,12 @@ describe('바이트로 바꾸고 되돌리기', () => {
     })
 
     it('조각 수가 0이면 거절한다', () => {
-      expect(decodeChunk(new Uint8Array([0, 0, 0, 65])).ok).toBe(false)
+      expect(decodeChunk(new Uint8Array([0, 0, 0, 0, 0, 65])).ok).toBe(false)
     })
 
     it('자리가 전체보다 크면 거절한다', () => {
       // 3번째인데 전부 2개라고 한다. 믿고 넣으면 엉뚱한 자리에 들어간다.
-      expect(decodeChunk(new Uint8Array([0, 3, 2, 65])).ok).toBe(false)
+      expect(decodeChunk(new Uint8Array([0, 0, 3, 0, 2, 65])).ok).toBe(false)
     })
   })
 })

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { chunkCountFor } from '@/application/assets/AssetChunks'
 import { ReceiveAsset } from '@/application/assets/ReceiveAsset'
 import { SendPhoto } from '@/application/assets/SendPhoto'
 import { SendVoice } from '@/application/assets/SendVoice'
@@ -65,6 +66,13 @@ interface ChatState {
   sendingPhoto: boolean
   /** 지금 녹음 중인가. 화면이 빨갛게 바뀐다 */
   recording: boolean
+  /**
+   * 녹음은 끝났는데 아직 안 보낸 것.
+   *
+   * 블루투스로 이어져 있을 때만 생긴다. 좁은 길이라 얼마나 걸릴지
+   * 알려주고 **사용자가 고른 뒤에** 보낸다.
+   */
+  pendingVoice: { readonly byteLength: number; readonly durationMs: number } | null
   /** 지금 듣고 있는 음성의 번호. 아무것도 아니면 null */
   playingVoice: string | null
   /**
@@ -98,12 +106,16 @@ interface ChatState {
   shareBattery(level: number): Promise<void>
   /** 내 캐릭터가 자세를 취한다. 자세 이름만 나가서 몇십 바이트다 */
   sendSticker(pose: StickerPose): Promise<void>
-  /** 앨범에서 고르거나 찍어 보낸다 */
-  sendPhoto(from: 'library' | 'camera', caption?: string): Promise<void>
+  /** 앨범에서 고르거나 찍어 보낸다. `narrow` 면 블루투스용으로 훨씬 작게 줄인다 */
+  sendPhoto(from: 'library' | 'camera', caption?: string, narrow?: boolean): Promise<void>
   /** 목소리를 녹음하기 시작한다. 이미 녹음 중이면 아무 일도 안 한다 */
   startRecording(): Promise<void>
-  /** 녹음을 마치고 보낸다 */
+  /** 녹음을 마치고 보낸다. 블루투스면 바로 안 보내고 `pendingVoice` 에 둔다 */
   stopRecordingAndSend(): Promise<void>
+  /** 좁은 길로 가도 좋다고 했다. 둬둔 녹음을 보낸다 */
+  sendPendingVoice(): Promise<void>
+  /** 둬둔 녹음을 버린다 */
+  discardPendingVoice(): void
   /** 녹음을 버린다. 보내지 않는다 */
   cancelRecording(): Promise<void>
   /** 음성 메시지를 듣는다. 이미 듣고 있던 것은 멈춘다 */
@@ -165,6 +177,60 @@ export const useChatStore = create<ChatState>((set, get) => {
   let unsubscribes: Array<() => void> = []
   let typingTimer: ReturnType<typeof setTimeout> | null = null
   let receiver: ReceiveAsset | null = null
+
+  /** 아직 안 보낸 녹음. 화면에는 크기와 길이만 알리고 내용은 여기 둔다 */
+  let heldVoice: { base64: string; durationMs: number; byteLength: number } | null = null
+
+  /** 녹음한 것을 실제로 보낸다 */
+  async function sendRecorded(recorded: {
+    base64: string
+    durationMs: number
+    byteLength: number
+  }): Promise<void> {
+    const active = deps
+    if (active === null) return
+
+    const conversation = get().conversation
+    if (conversation === null) return
+
+    const sender = new SendVoice({
+      transport: active.transport,
+      repository: active.repository,
+      assets: active.assets,
+      clock: systemClock,
+      ids,
+    })
+
+    const result = await sender.execute({
+      author: active.me,
+      conversation,
+      base64: recorded.base64,
+      durationMs: recorded.durationMs,
+      byteLength: recorded.byteLength,
+      onProgress: (sent, total, assetId) => {
+        set({
+          assetProgress: {
+            ...get().assetProgress,
+            [assetId]: total === 0 ? 1 : sent / total,
+          },
+        })
+      },
+    })
+
+    if (!result.ok) return
+
+    // 내가 보낸 것은 이미 기기에 있다. 바로 들을 수 있다.
+    const { [result.value.assetId]: _sent, ...rest } = get().assetProgress
+    set({
+      conversation: result.value.conversation,
+      assetProgress: rest,
+      assetPaths: {
+        ...get().assetPaths,
+        [result.value.assetId]: active.assets.pathOf(result.value.assetId),
+      },
+    })
+    await refresh()
+  }
 
   /**
    * 사진 조각을 받는 이.
@@ -395,6 +461,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     assetPaths: {},
     sendingPhoto: false,
     recording: false,
+    pendingVoice: null,
     playingVoice: null,
     peerBattery: null,
     pendingCount: 0,
@@ -413,6 +480,18 @@ export const useChatStore = create<ChatState>((set, get) => {
         next.transport.onReceive(envelope => {
           void queue.run(() => handle(envelope))
         }),
+        // 좁은 길은 사진 조각 하나가 몇십 초 걸린다. 그 사이에도 퍼센트가
+        // 움직여야 "멈췄나" 싶지 않다. 받는 중인 것이 하나일 때만 어디에
+        // 보탤지 안다. 둘 이상이면 조각 단위로만 보인다.
+        next.transport.onReceiveProgress?.(fraction => {
+          const inFlight = assetReceiver(deps)?.inFlight() ?? []
+          const only = inFlight.length === 1 ? inFlight[0] : undefined
+          if (only === undefined) return
+          const total = chunkCountFor(only.byteLength)
+          if (total === 0) return
+          const ratio = Math.min(1, (only.received + Math.min(1, fraction)) / total)
+          set({ assetProgress: { ...get().assetProgress, [only.assetId]: ratio } })
+        }) ?? (() => undefined),
         next.transport.onStateChange(state => {
           set({ connection: state })
 
@@ -631,7 +710,7 @@ export const useChatStore = create<ChatState>((set, get) => {
      * **줄을 세우지 않는다.** 사진은 오래 걸리는데, 줄을 세우면 그동안
      * 글도 못 보낸다. 대신 한 번에 한 장만 보내게 막는다.
      */
-    async sendPhoto(from, caption) {
+    async sendPhoto(from, caption, narrow) {
       const active = deps
       if (active === null || get().sendingPhoto) return
 
@@ -662,11 +741,12 @@ export const useChatStore = create<ChatState>((set, get) => {
           conversation,
           uri: picked.value.uri,
           ...(caption === undefined ? {} : { caption }),
-          onProgress: (sent, total) => {
+          ...(narrow === true ? { narrow: true } : {}),
+          onProgress: (sent, total, assetId) => {
             set({
               assetProgress: {
                 ...get().assetProgress,
-                outgoing: total === 0 ? 1 : sent / total,
+                [assetId]: total === 0 ? 1 : sent / total,
               },
             })
           },
@@ -674,7 +754,7 @@ export const useChatStore = create<ChatState>((set, get) => {
 
         if (result.ok) {
           // 내가 보낸 사진은 이미 기기에 있다. 바로 보여준다.
-          const { outgoing: _sent, ...rest } = get().assetProgress
+          const { [result.value.assetId]: _sent, ...rest } = get().assetProgress
           set({
             conversation: result.value.conversation,
             assetProgress: rest,
@@ -708,46 +788,33 @@ export const useChatStore = create<ChatState>((set, get) => {
       // 너무 짧거나 못 읽었다. 조용히 넘어간다.
       if (!recorded.ok) return
 
-      const conversation = get().conversation
-      if (conversation === null) return
+      // **블루투스면 바로 안 보낸다.** 좁은 길이라 10초 녹음이 15초쯤
+      // 걸린다. 얼마나 걸릴지 알려주고 사용자가 고른 뒤에 보낸다.
+      if (get().connection?.link === 'ble') {
+        heldVoice = recorded.value
+        set({
+          pendingVoice: {
+            byteLength: recorded.value.byteLength,
+            durationMs: recorded.value.durationMs,
+          },
+        })
+        return
+      }
 
-      const sender = new SendVoice({
-        transport: active.transport,
-        repository: active.repository,
-        assets: active.assets,
-        clock: systemClock,
-        ids,
-      })
+      await sendRecorded(recorded.value)
+    },
 
-      const result = await sender.execute({
-        author: active.me,
-        conversation,
-        base64: recorded.value.base64,
-        durationMs: recorded.value.durationMs,
-        byteLength: recorded.value.byteLength,
-        onProgress: (sent, total) => {
-          set({
-            assetProgress: {
-              ...get().assetProgress,
-              outgoing: total === 0 ? 1 : sent / total,
-            },
-          })
-        },
-      })
+    async sendPendingVoice() {
+      const held = heldVoice
+      heldVoice = null
+      set({ pendingVoice: null })
+      if (held === null) return
+      await sendRecorded(held)
+    },
 
-      if (!result.ok) return
-
-      // 내가 보낸 것은 이미 기기에 있다. 바로 들을 수 있다.
-      const { outgoing: _sent, ...rest } = get().assetProgress
-      set({
-        conversation: result.value.conversation,
-        assetProgress: rest,
-        assetPaths: {
-          ...get().assetPaths,
-          [result.value.assetId]: active.assets.pathOf(result.value.assetId),
-        },
-      })
-      await refresh()
+    discardPendingVoice() {
+      heldVoice = null
+      set({ pendingVoice: null })
     },
 
     async cancelRecording() {

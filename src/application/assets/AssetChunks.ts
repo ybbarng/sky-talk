@@ -81,6 +81,11 @@ export class AssetAssembly {
     return this.received.size === this.total
   }
 
+  /** 지금까지 받은 조각 수 */
+  receivedCount(): number {
+    return this.received.size
+  }
+
   /** 몇 퍼센트쯤 왔나. 화면에 진행률을 보여줄 때 쓴다 */
   progress(): number {
     if (this.total === 0) return 1
@@ -135,6 +140,24 @@ export function isSendable(byteLength: number): boolean {
  */
 export const RESIZE_LONG_EDGE = 1600
 export const JPEG_QUALITY = 0.8
+
+/**
+ * 좁은 길(블루투스)로 보낼 때의 크기.
+ *
+ * 초당 3KB 남짓이라 1600px 사진(300~500KB)은 몇 분이 걸린다. 800px 에
+ * 화질 0.5 면 대개 60~100KB 라 30초 안팎이다. 기내식 사진은 이걸로 된다.
+ */
+export const NARROW_LONG_EDGE = 800
+export const NARROW_JPEG_QUALITY = 0.5
+
+/** 좁은 길의 어림 속도. 얼마나 걸릴지 말해줄 때 쓴다 */
+export const NARROW_BYTES_PER_SECOND = 3_000
+
+/** 좁은 길로 이만큼 보내면 몇 초쯤 걸리나. 올림 */
+export function narrowSeconds(byteLength: number): number {
+  // base64 로 담겨 4/3 배가 된다
+  return Math.max(1, Math.ceil((byteLength * 4) / 3 / NARROW_BYTES_PER_SECOND))
+}
 
 /** 긴 변을 목표에 맞춘 크기. 원본이 이미 작으면 그대로 둔다 */
 export function resizedSize(

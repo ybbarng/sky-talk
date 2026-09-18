@@ -148,7 +148,10 @@ export class CompositeTransport implements MessageTransport {
     })
   }
 
-  async send(envelope: Envelope): Promise<Result<void, DomainError>> {
+  async send(
+    envelope: Envelope,
+    onProgress?: (fraction: number) => void,
+  ): Promise<Result<void, DomainError>> {
     const active = this.active
 
     if (active === null || !this.state.isUsable()) {
@@ -157,12 +160,22 @@ export class CompositeTransport implements MessageTransport {
       return err(domainError('not-found', '연결이 없어 대기 줄에 넣었다', 'transport'))
     }
 
-    return active.send(envelope)
+    return active.send(envelope, onProgress)
   }
 
   onReceive(handler: (envelope: Envelope) => void): Unsubscribe {
     this.receiveHandlers.add(handler)
     return () => this.receiveHandlers.delete(handler)
+  }
+
+  /** 들어오는 봉투의 진행. 어느 길에서 오든 그대로 올린다 */
+  onReceiveProgress(handler: (fraction: number) => void): Unsubscribe {
+    const stops = this.candidates.map(
+      one => one.onReceiveProgress?.(handler) ?? (() => undefined),
+    )
+    return () => {
+      for (const stop of stops) stop()
+    }
   }
 
   onStateChange(handler: (state: ConnectionState) => void): Unsubscribe {

@@ -92,6 +92,9 @@ private class PeripheralDelegate: NSObject, CBPeripheralManagerDelegate {
   /// 보낼 자리가 없어 밀려난 것들. 자리가 나면 여기부터 보낸다.
   private var backlog: [Data] = []
 
+  /// 이만큼 밀리면 더 안 받는다. 사진 하나가 400조각쯤이라 넉넉히 둔다
+  private let maxBacklog = 4_000
+
   init(localName: String, emit: @escaping (String, [String: Any]) -> Void) {
     self.localName = localName
     self.emit = emit
@@ -104,29 +107,25 @@ private class PeripheralDelegate: NSObject, CBPeripheralManagerDelegate {
     backlog.removeAll()
   }
 
+  /// 조각 하나를 줄에 세운다.
+  ///
+  /// **줄에 세웠으면 `true` 다.** 자리가 없어 당장 못 나가도
+  /// `peripheralManagerIsReady` 가 오면 마저 나간다. 듣는 상대가 없거나
+  /// 줄이 너무 길면 `false`. 그때는 정말 못 보낸 것이다.
   func send(base64: String) -> Bool {
     guard
       let data = Data(base64Encoded: base64),
-      let outbox = outbox,
-      !subscribers.isEmpty
+      outbox != nil,
+      !subscribers.isEmpty,
+      backlog.count < maxBacklog
     else {
       return false
     }
 
     // 밀린 것이 있으면 순서를 지킨다. 새것을 먼저 보내면 말이 뒤엉킨다.
-    if !backlog.isEmpty {
-      backlog.append(data)
-      return flush()
-    }
-
-    let sent = manager?.updateValue(
-      data,
-      for: outbox,
-      onSubscribedCentrals: subscribers
-    ) ?? false
-
-    if !sent { backlog.append(data) }
-    return sent
+    backlog.append(data)
+    flush()
+    return true
   }
 
   /// 자리가 났을 때 밀린 것을 내보낸다

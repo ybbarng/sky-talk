@@ -103,10 +103,18 @@ export class ReceiveAsset {
   }
 
   /** 아직 받는 중인 사진들. 화면이 진행률을 그릴 때 쓴다 */
-  inFlight(): Array<{ assetId: string; ratio: number }> {
+  inFlight(): Array<{
+    assetId: string
+    ratio: number
+    /** 받은 조각 수와 전체 크기. 좁은 길에서 조각 사이의 진행을 보탤 때 쓴다 */
+    received: number
+    byteLength: number
+  }> {
     return [...this.pending.entries()].map(([assetId, assembly]) => ({
       assetId,
       ratio: assembly.progress(),
+      received: assembly.receivedCount(),
+      byteLength: assembly.byteLength,
     }))
   }
 

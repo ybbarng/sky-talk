@@ -69,6 +69,9 @@ private val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b3
 
 /** 협상 전 기본값. 3바이트는 블루투스가 가져간다 */
 private const val DEFAULT_MTU = 23
+
+/** 이만큼 밀리면 더 안 받는다. 사진 하나가 400조각쯤이라 넉넉히 둔다 */
+private const val MAX_BACKLOG = 4_000
 private const val ATT_OVERHEAD = 3
 
 class BlePeripheralModule : Module() {
@@ -365,19 +368,26 @@ class BlePeripheralModule : Module() {
     return true
   }
 
+  /**
+   * 조각 하나를 줄에 세운다.
+   *
+   * **줄에 세웠으면 `true` 다.** 자리가 없어 당장 못 나가도 `onNotificationSent`
+   * 가 오면 마저 나간다. 예전에는 자리가 없으면 `false` 를 돌려줬는데, 그러면
+   * JS 가 실패로 보고 멈추는데 실제로는 뒤늦게 나가서 같은 조각이 두 번 갔다.
+   *
+   * 듣는 상대가 없거나 줄이 너무 길면 `false`. 그때는 정말 못 보낸 것이다.
+   */
   private fun sendChunk(base64: String): Boolean {
-    val out = outbox ?: return false
+    if (outbox == null) return false
     if (listeners.isEmpty()) return false
+    if (backlog.size >= MAX_BACKLOG) return false
 
     val data = runCatching { Base64.decode(base64, Base64.NO_WRAP) }.getOrNull() ?: return false
 
     // 밀린 것이 있으면 순서를 지킨다. 새것을 먼저 보내면 말이 뒤엉킨다.
-    if (backlog.isNotEmpty()) {
-      backlog.addLast(data)
-      return flush()
-    }
-
-    return notify(out, data)
+    backlog.addLast(data)
+    flush()
+    return true
   }
 
   /** 자리가 났을 때 밀린 것을 내보낸다 */

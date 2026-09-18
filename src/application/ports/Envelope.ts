@@ -167,11 +167,13 @@ export type EnvelopeType = Envelope['t']
  * 좁은 길(블루투스)로도 보낼 만한 봉투인가.
  *
  * 입력 중 표시 같은 건 안 보낸다. 좁은 길을 실제 대화에 양보한다.
- * (docs/04-transport-spec.md 4.4)
+ *
+ * 사진·음성 조각은 **보낸다.** 예전에는 막았는데, 비행기에서는 블루투스뿐이라
+ * 막으면 영영 못 보낸다. 대신 보내는 쪽이 작게 줄이고, 얼마나 걸릴지
+ * 알린 뒤 사용자가 고른다. (docs/04-transport-spec.md 4.4)
  */
 export function worthSendingOnNarrowLink(type: EnvelopeType): boolean {
-  // 사진 조각은 좁은 길을 통째로 막는다. Wi-Fi 가 열릴 때까지 기다린다.
-  return type !== 'typing' && type !== 'presence' && type !== 'asset_chunk'
+  return type !== 'typing' && type !== 'presence'
 }
 
 /** 받았다는 답을 기다려야 하는 봉투인가 */
