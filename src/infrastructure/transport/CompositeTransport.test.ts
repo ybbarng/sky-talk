@@ -205,6 +205,63 @@ describe('갈아타는 동안 보낸 것', () => {
   })
 })
 
+describe('나중에 이어지는 길', () => {
+  it('처음에 못 연 길이 스스로 이어지면 그리로 옮긴다', async () => {
+    // 붙는 쪽 Wi-Fi 는 상대를 못 찾으면 실패를 돌려주고 뒤에서 다시 찾는다.
+    // 그 사이 블루투스만 열려 있다가, 나중에 Wi-Fi 가 붙을 수 있다.
+    const wifi = new FakeMessageTransport('wifi')
+    const ble = new FakeMessageTransport('ble')
+    wifi.failConnect = true
+    ble.failConnect = true
+    const composite = new CompositeTransport([wifi, ble])
+    await composite.connect()
+    expect(composite.currentState().isUsable()).toBe(false)
+
+    ble.regainConnection()
+
+    expect(composite.kind).toBe('ble')
+    expect(composite.currentState().isUsable()).toBe(true)
+  })
+
+  it('블루투스로 이어진 뒤에는 Wi-Fi 가 되뇌는 "찾는 중" 에 흔들리지 않는다', async () => {
+    // 비행기에서 실제로 이런다. Wi-Fi 는 영영 못 찾고 몇 초마다 다시 찾는다.
+    const wifi = new FakeMessageTransport('wifi')
+    const ble = new FakeMessageTransport('ble')
+    wifi.openWithoutPeer = true
+    ble.openWithoutPeer = true
+    const composite = new CompositeTransport([wifi, ble])
+    await composite.connect()
+
+    ble.regainConnection()
+    expect(composite.kind).toBe('ble')
+
+    wifi.searchAgain()
+    wifi.searchAgain()
+
+    expect(composite.currentState().isUsable()).toBe(true)
+    await composite.send(envelope('블루투스로'))
+    expect(ble.sent).toHaveLength(1)
+  })
+
+  it('블루투스가 끊긴 뒤 Wi-Fi 가 이어지면 그리로 옮긴다', async () => {
+    const wifi = new FakeMessageTransport('wifi')
+    const ble = new FakeMessageTransport('ble')
+    wifi.openWithoutPeer = true
+    ble.openWithoutPeer = true
+    const composite = new CompositeTransport([wifi, ble])
+    await composite.connect()
+    ble.regainConnection()
+
+    ble.loseConnection()
+    expect(composite.currentState().isUsable()).toBe(false)
+
+    wifi.regainConnection()
+
+    expect(composite.kind).toBe('wifi')
+    expect(composite.currentState().isUsable()).toBe(true)
+  })
+})
+
 describe('아래쪽 길이 끊겼을 때', () => {
   it('위로 알린다', async () => {
     const wifi = new FakeMessageTransport('wifi')

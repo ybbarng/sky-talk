@@ -26,6 +26,12 @@ export class FakeMessageTransport implements MessageTransport {
   /** 연결 자체를 실패시킨다. 길을 갈아탈 때 새 길이 안 열리는 상황을 만든다 */
   failConnect = false
 
+  /**
+   * 열리기는 하는데 상대가 없다. 여는 쪽 Wi-Fi 와 블루투스가 이렇다.
+   * "열렸다" 와 "이어졌다" 가 다른 상황을 만든다.
+   */
+  openWithoutPeer = false
+
   constructor(readonly kind: LinkKind = 'wifi') {
     this.state = ConnectionState.connected(kind)
     this.linkQuality = LinkQuality.unknown(kind)
@@ -34,6 +40,10 @@ export class FakeMessageTransport implements MessageTransport {
   async connect(): Promise<Result<void, DomainError>> {
     if (this.failConnect) {
       return err(domainError('not-found', '연결하지 못했다', 'transport'))
+    }
+    if (this.openWithoutPeer) {
+      this.searchAgain()
+      return ok(undefined)
     }
     this.setState(ConnectionState.connected(this.kind))
     return ok(undefined)
@@ -91,6 +101,17 @@ export class FakeMessageTransport implements MessageTransport {
   loseConnection(): void {
     const lost = this.state.lose()
     if (lost.ok) this.setState(lost.value)
+  }
+
+  /** 스스로 다시 붙은 것처럼 만든다. 길마다 뒤에서 도는 재시도 고리를 흉내 낸다 */
+  regainConnection(): void {
+    this.setState(ConnectionState.connected(this.kind))
+  }
+
+  /** 상대를 못 찾아 다시 찾기 시작한 것처럼 만든다. 붙는 쪽 Wi-Fi 가 몇 초마다 이런다 */
+  searchAgain(): void {
+    const searching = this.state.startSearching()
+    if (searching.ok) this.setState(searching.value)
   }
 
   setQuality(quality: LinkQuality): void {

@@ -77,6 +77,10 @@ export class CompositeTransport implements MessageTransport {
       for (const candidate of this.candidates) {
         const result = await candidate.connect()
         if (result.ok) opened.push(candidate)
+        // **못 연 길도 지켜본다.** 길마다 스스로 다시 붙는 고리가 있어서
+        // 지금 안 열렸어도 나중에 이어질 수 있다. 안 보고 있으면 그때
+        // 아무도 모른다.
+        this.watch(candidate)
       }
 
       if (opened.length === 0) {
@@ -91,7 +95,6 @@ export class CompositeTransport implements MessageTransport {
         return err(domainError('not-found', '열 수 있는 길이 없다', 'transport'))
       }
 
-      for (const one of opened) this.watch(one)
       this.adopt(chosen)
 
       await this.drainOutbox()
@@ -115,7 +118,16 @@ export class CompositeTransport implements MessageTransport {
       // 이미 이어져 있는 길이 있으면 굳이 옮기지 않는다
       if (this.active?.currentState().isUsable() === true) return
 
-      this.unsubscribe(candidate)
+      // **옛 길의 말을 더 듣지 않는다.** 붙는 쪽 Wi-Fi 는 상대를 못 찾는
+      // 동안 몇 초마다 "찾는 중" 을 되뇌는데, 그대로 두면 블루투스로
+      // 멀쩡히 이어진 뒤에도 그 소리에 "끊겼다" 로 바뀌어 말이 안 나간다.
+      // 대신 지켜보기만 한다. 이쪽이 끊기고 그쪽이 이어지면 그때 옮긴다.
+      const previous = this.active
+      if (previous !== null) {
+        this.unsubscribe(previous)
+        this.watch(previous)
+      }
+
       this.adopt(candidate)
       void this.drainOutbox()
     })
@@ -215,6 +227,8 @@ export class CompositeTransport implements MessageTransport {
   }
 
   private adopt(next: MessageTransport): void {
+    // 지켜보기만 하던 귀를 뗀다. 안 떼면 같은 길을 두 귀로 듣는다.
+    this.unsubscribe(next)
     this.active = next
 
     const unsubscribes: Unsubscribe[] = [

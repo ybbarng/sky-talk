@@ -2,7 +2,7 @@ import { loadBlePeripheral } from '@ble/index'
 import type { Envelope } from '@/application/ports/Envelope'
 import { worthSendingOnNarrowLink } from '@/application/ports/Envelope'
 import type { MessageTransport, Unsubscribe } from '@/application/ports/MessageTransport'
-import { ConnectionState } from '@/domain/connection/ConnectionState'
+import { ConnectionState, retryDelayMillis } from '@/domain/connection/ConnectionState'
 import { LinkQuality } from '@/domain/connection/LinkQuality'
 import { type DomainError, domainError } from '@/domain/shared/DomainError'
 import { err, ok, type Result } from '@/domain/shared/Result'
@@ -27,6 +27,15 @@ import { Reassembler } from './chunk/Reassembler'
  * 역할은 **여는 쪽이 알리고 붙는 쪽이 찾는다.** 운영체제로 가르지 않는다.
  * 왜 그런지는 `preferredRole` 에 적어뒀다.
  * 그쪽이 안 되면 **반대로 돌아선다**(`connect`).
+ *
+ * ## 열렸다는 것과 이어졌다는 것은 다르다
+ *
+ * `connect()` 가 성공하면 **무전기가 켜진 것**이다. 알리는 쪽은 알리기
+ * 시작했고, 찾는 쪽은 찾기 시작했다. 상대가 나타나 실제로 이어지면
+ * `onStateChange` 로 알린다. 그때까지는 "찾는 중" 이다.
+ *
+ * 한 번 켜지면 **스스로 계속 찾고, 끊기면 다시 찾는다.** 비행기에서는
+ * 사용자가 뭘 눌러야 한다면 그건 실패한 설계다.
  *
  * ## 글만 간다
  *
@@ -57,6 +66,18 @@ export class BleMessageTransport implements MessageTransport {
   private bundle = 0
   private mtu = CONSERVATIVE_MTU
 
+  /** 무전기가 켜져 있나. 켜져 있으면 `connect()` 를 다시 불러도 아무것도 안 한다 */
+  private opened = false
+
+  /**
+   * 몇 번째로 켠 것인가.
+   *
+   * 찾기는 뒤에서 계속 도는 고리다. 닫았다가 다시 켜면 옛 고리가 아직
+   * 돌고 있을 수 있는데, 그것이 새 무전기를 건드리면 안 된다. 고리마다
+   * 자기 번호를 들고 있다가 번호가 바뀌면 조용히 빠진다.
+   */
+  private epoch = 0
+
   /**
    * 지금 맡고 있는 쪽. 붙고 나서 끊을 때 어느 쪽을 정리할지 가른다.
    *
@@ -86,7 +107,7 @@ export class BleMessageTransport implements MessageTransport {
   }
 
   /**
-   * 붙어본다. 제자리로 먼저, 안 되면 반대로.
+   * 무전기를 켠다. 제자리로 먼저, 안 되면 반대로.
    *
    * ## 왜 둘을 동시에 하지 않나
    *
@@ -102,12 +123,24 @@ export class BleMessageTransport implements MessageTransport {
    * 알리는 장치가 없는 안드로이드가 있다. 아이폰도 다른 앱이 이미
    * 알리고 있으면 자리를 못 잡는다. 그때 **가만히 있는 대신 반대쪽을
    * 해본다.** 상대가 마침 그 반대를 하고 있으면 만난다.
+   *
+   * ## 돌아서면 안 되는 때
+   *
+   * **블루투스가 꺼져 있거나 권한이 없으면 돌아서지 않는다.** 반대쪽도
+   * 똑같이 안 되기 때문이다. 그런데도 돌아서면 아이폰은 알리기가
+   * "됐다" 고 답해서(켜지기 전에도 받아준다) 알리는 쪽으로 굳어버리고,
+   * 나중에 블루투스를 켜도 **둘 다 알리기만 하고 아무도 안 찾는다.**
+   * 실제로 그렇게 두 폰이 영영 못 만났다(2026-09-19).
    */
   async connect(): Promise<Result<void, DomainError>> {
+    // 이미 켜져 있다. 다시 켜면 듣는 귀가 두 개가 되어 같은 말을 두 번 듣는다.
+    if (this.opened) return ok(undefined)
+
     this.moveTo(this.state.startSearching())
 
     const first = await this.open(this.preferredRole)
     if (first.ok) return first
+    if (first.error.code === 'not-allowed') return first
 
     const other = this.preferredRole === 'advertiser' ? 'scanner' : 'advertiser'
     const second = await this.open(other)
@@ -124,6 +157,7 @@ export class BleMessageTransport implements MessageTransport {
     // **실패하면 반쯤 열린 것을 반드시 닫는다.** 안 닫고 반대쪽을
     // 시작하면 두 역할이 겹쳐서 무전기가 서로를 방해한다.
     if (!opened.ok) await this.teardown()
+    else this.opened = true
 
     return opened
   }
@@ -141,14 +175,11 @@ export class BleMessageTransport implements MessageTransport {
    * 바꾸면 화면이 깜빡인다.
    */
   private async teardown(): Promise<void> {
-    for (const subscription of this.subscriptions) {
-      try {
-        subscription.remove()
-      } catch {
-        // 이미 떨어졌다
-      }
-    }
-    this.subscriptions.length = 0
+    // 뒤에서 도는 찾기 고리를 멈춘다. 번호가 바뀌면 고리가 알아서 빠진다.
+    this.epoch += 1
+    this.opened = false
+
+    this.dropSubscriptions()
     this.reassembler.clear()
 
     try {
@@ -156,6 +187,11 @@ export class BleMessageTransport implements MessageTransport {
         const peripheral = loadBlePeripheral()
         if (peripheral.available) await peripheral.module.stop()
       } else {
+        try {
+          this.manager?.stopDeviceScan?.()
+        } catch {
+          // 이미 멈췄다
+        }
         await this.device?.cancelConnection?.()
         this.manager?.destroy?.()
       }
@@ -165,6 +201,17 @@ export class BleMessageTransport implements MessageTransport {
 
     this.device = null
     this.manager = null
+  }
+
+  private dropSubscriptions(): void {
+    for (const subscription of this.subscriptions) {
+      try {
+        subscription.remove()
+      } catch {
+        // 이미 떨어졌다
+      }
+    }
+    this.subscriptions.length = 0
   }
 
   async send(envelope: Envelope): Promise<Result<void, DomainError>> {
@@ -239,6 +286,8 @@ export class BleMessageTransport implements MessageTransport {
             this.moveTo(this.state.startHandshake('ble'))
             this.moveTo(this.state.establish())
           } else {
+            // 상대가 떨어졌다. 알리기는 계속되므로 다시 찾아오면 붙는다.
+            this.reassembler.clear()
             this.moveTo(this.state.lose())
           }
         }),
@@ -257,7 +306,17 @@ export class BleMessageTransport implements MessageTransport {
     }
   }
 
-  /** 찾는 쪽을 맡는다. 알리고 있는 상대를 뒤진다 */
+  /**
+   * 찾는 쪽을 맡는다. 알리고 있는 상대를 뒤진다.
+   *
+   * **켜질 때까지 기다렸다가 찾는다.** 아이폰은 무전기를 만든 직후
+   * 상태가 "모름" 인데, 그때 찾기를 시작하면 **즉시 오류로 끝난다.**
+   * 예전에는 그 오류를 "찾기가 안 된다" 로 보고 알리는 쪽으로 돌아섰고,
+   * 그래서 두 폰이 다 알리기만 했다(2026-09-19).
+   *
+   * 켜진 것을 보면 찾기 고리를 돌리고 바로 돌아온다. 이어지는 것은
+   * 고리가 `onStateChange` 로 알린다.
+   */
   private async scan(): Promise<Result<void, DomainError>> {
     // **묻는 것이 먼저다.** 권한 없이 찾기를 시작하면 오류도 안 나고
     // 결과만 영영 안 온다. 그러면 "상대를 못 찾았다" 로만 보인다.
@@ -269,62 +328,164 @@ export class BleMessageTransport implements MessageTransport {
 
     try {
       this.manager = new ble.module.BleManager()
+    } catch (cause) {
+      return err(wrap(cause, '블루투스를 열지 못했다'))
+    }
 
-      return await new Promise<Result<void, DomainError>>(resolve => {
-        let settled = false
+    const ready = await this.waitUntilPoweredOn()
+    if (!ready.ok) return ready
 
-        const finish = (result: Result<void, DomainError>) => {
-          if (settled) return
-          settled = true
-          resolve(result)
+    void this.keepLooking(this.epoch)
+    return ok(undefined)
+  }
+
+  /**
+   * 블루투스가 켜질 때까지 기다린다.
+   *
+   * "모름" 과 "다시 켜는 중" 은 곧 답이 오므로 기다린다. 꺼져 있거나
+   * 권한이 없거나 아예 못 쓰면 **무엇을 누르면 되는지** 적어서 돌려준다.
+   * 이 셋은 반대쪽으로 돌아서도 똑같이 안 되므로 `not-allowed` 로 알린다.
+   */
+  private waitUntilPoweredOn(): Promise<Result<void, DomainError>> {
+    return new Promise(resolve => {
+      let settled = false
+      let subscription: { remove(): void } | null = null
+
+      const finish = (result: Result<void, DomainError>) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        try {
+          subscription?.remove()
+        } catch {
+          // 이미 떨어졌다
         }
+        resolve(result)
+      }
 
+      const timer = setTimeout(() => {
+        finish(err(domainError('not-allowed', BLUETOOTH_NOT_READY, 'ble')))
+      }, POWER_ON_TIMEOUT_MS)
+
+      try {
+        subscription = this.manager.onStateChange((state: string) => {
+          if (state === 'PoweredOn') {
+            finish(ok(undefined))
+            return
+          }
+
+          const blocked = BLUETOOTH_BLOCKED[state]
+          if (blocked !== undefined) {
+            finish(err(domainError('not-allowed', blocked, 'ble')))
+          }
+          // 모름 · 다시 켜는 중 → 곧 답이 온다. 기다린다.
+        }, true)
+      } catch (cause) {
+        finish(err(wrap(cause, '블루투스 상태를 못 읽었다')))
+      }
+    })
+  }
+
+  /**
+   * 찾고, 붙고, 끊기면 다시 찾는다. 무전기를 끌 때까지 돈다.
+   *
+   * 한 바퀴에 얼마 동안 찾다가 잠깐 쉬고 다시 찾는다. **못 찾았다고
+   * 접지 않는다.** 상대가 아직 앱을 안 켰을 수도 있고, 화장실에 갔을
+   * 수도 있다. 접으면 사용자가 뭔가를 눌러야 하는데, 비행기에서는
+   * 그걸 알 길이 없다.
+   *
+   * 오류가 나면(블루투스가 꺼졌다든가) 점점 길게 쉰다. 안드로이드는
+   * 30초에 다섯 번 넘게 찾기를 시작하면 한동안 아무것도 안 준다.
+   */
+  private async keepLooking(epoch: number): Promise<void> {
+    let failures = 0
+
+    while (this.alive(epoch)) {
+      const round = await this.scanOnce()
+      if (!this.alive(epoch)) return
+
+      if (round.kind === 'found') {
+        const attached = await this.attach(round.device, epoch)
+        if (attached) return
+        failures += 1
+      } else if (round.kind === 'error') {
+        failures += 1
+      } else {
+        failures = 0
+      }
+
+      await pause(failures === 0 ? SCAN_PAUSE_MS : retryDelayMillis(failures))
+    }
+  }
+
+  private alive(epoch: number): boolean {
+    return this.epoch === epoch && this.manager !== null && this.role === 'scanner'
+  }
+
+  /** 한 바퀴 찾는다. 찾으면 그 기기를, 시간이 다 되면 아무것도, 오류면 오류를 */
+  private scanOnce(): Promise<ScanRound> {
+    return new Promise(resolve => {
+      let settled = false
+
+      const finish = (round: ScanRound) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        try {
+          this.manager?.stopDeviceScan?.()
+        } catch {
+          // 이미 멈췄다
+        }
+        resolve(round)
+      }
+
+      // 한참 못 찾으면 한 바퀴 접고 잠깐 쉰다. 계속 붙들고 있으면 배터리만 준다.
+      const timer = setTimeout(() => finish({ kind: 'nobody' }), SCAN_TIMEOUT_MS)
+
+      try {
         this.manager.startDeviceScan(
           [BLE_UUIDS.service],
           null,
           // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 타입이다
           (error: any, device: any) => {
-            if (error !== null) {
-              finish(err(wrap(error, '블루투스로 찾지 못했다')))
+            if (error !== null && error !== undefined) {
+              finish({ kind: 'error', why: describe(error) })
               return
             }
-            if (device === null) return
-
-            this.manager.stopDeviceScan()
-            void this.attach(device).then(finish)
+            if (device === null || device === undefined) return
+            finish({ kind: 'found', device })
           },
         )
-
-        // 한참 못 찾으면 접는다. 계속 찾으면 배터리만 준다.
-        setTimeout(() => {
-          try {
-            this.manager?.stopDeviceScan?.()
-          } catch {
-            // 이미 멈췄다
-          }
-          finish(err(domainError('not-found', '블루투스로 상대를 못 찾았다', 'ble')))
-        }, SCAN_TIMEOUT_MS)
-      })
-    } catch (cause) {
-      return err(wrap(cause, '블루투스를 열지 못했다'))
-    }
+      } catch (cause) {
+        finish({ kind: 'error', why: describe(cause) })
+      }
+    })
   }
 
+  /** 찾은 상대에게 붙는다. 붙었으면 true */
   // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 타입이다
-  private async attach(found: any): Promise<Result<void, DomainError>> {
+  private async attach(found: any, epoch: number): Promise<boolean> {
     try {
       this.moveTo(this.state.startHandshake('ble'))
 
-      this.device = await found.connect()
-      await this.device.discoverAllServicesAndCharacteristics()
+      const device = await found.connect()
+      await device.discoverAllServicesAndCharacteristics()
 
-      const negotiated = await this.device.requestMTU?.(CONSERVATIVE_MTU)
+      // 붙는 동안 무전기를 껐을 수 있다. 그러면 놓아준다.
+      if (!this.alive(epoch)) {
+        await device.cancelConnection?.()
+        return false
+      }
+
+      this.device = device
+
+      const negotiated = await device.requestMTU?.(CONSERVATIVE_MTU)
       if (typeof negotiated?.mtu === 'number') {
         this.mtu = Math.min(negotiated.mtu, CONSERVATIVE_MTU)
       }
 
       this.subscriptions.push(
-        this.device.monitorCharacteristicForService(
+        device.monitorCharacteristicForService(
           BLE_UUIDS.service,
           BLE_UUIDS.outbox,
           // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 타입이다
@@ -335,10 +496,27 @@ export class BleMessageTransport implements MessageTransport {
         ),
       )
 
+      // **끊기면 다시 찾는다.** 엘리베이터에서 내리면 몇 초 안에 다시 붙어야 한다.
+      if (typeof device.onDisconnected === 'function') {
+        this.subscriptions.push(
+          device.onDisconnected(() => {
+            if (!this.alive(epoch) || this.device !== device) return
+            this.dropSubscriptions()
+            this.reassembler.clear()
+            this.device = null
+            this.moveTo(this.state.lose())
+            void this.keepLooking(epoch)
+          }),
+        )
+      }
+
       this.moveTo(this.state.establish())
-      return ok(undefined)
-    } catch (cause) {
-      return err(wrap(cause, '블루투스로 잇지 못했다'))
+      return true
+    } catch {
+      // 붙다가 놓쳤다. 고리가 다시 찾는다.
+      this.device = null
+      this.moveTo(this.state.lose())
+      return false
     }
   }
 
@@ -401,10 +579,44 @@ export class BleMessageTransport implements MessageTransport {
   }
 }
 
-/** 이만큼 못 찾으면 접는다. 계속 찾으면 배터리만 준다 */
-const SCAN_TIMEOUT_MS = 20_000
+type ScanRound =
+  // biome-ignore lint/suspicious/noExplicitAny: 네이티브 모듈 타입이다
+  | { readonly kind: 'found'; readonly device: any }
+  | { readonly kind: 'nobody' }
+  | { readonly kind: 'error'; readonly why: string }
+
+/** 한 바퀴에 이만큼 찾는다. 그 뒤 잠깐 쉬고 다시 찾는다 */
+export const SCAN_TIMEOUT_MS = 20_000
+
+/** 한 바퀴 돌고 쉬는 시간 */
+export const SCAN_PAUSE_MS = 1_000
+
+/**
+ * 켜지기를 이만큼 기다린다.
+ *
+ * 처음 쓸 때는 아이폰이 "블루투스를 써도 되나요" 창을 띄우고, 사용자가
+ * 답할 때까지 상태가 "모름" 에 머문다. 그래서 넉넉히 둔다.
+ */
+export const POWER_ON_TIMEOUT_MS = 60_000
+
+/** 화면에 띄울 말. **무엇을 누르면 되는지** 적는다 */
+const BLUETOOTH_BLOCKED: Readonly<Record<string, string>> = {
+  PoweredOff: '블루투스가 꺼져 있어요.\n제어 센터나 설정에서 블루투스를 켜주세요.',
+  Unauthorized: '블루투스를 쓸 수 없어요.\n설정 → Skywalkie → 블루투스를 켜주세요.',
+  Unsupported: '이 기기는 블루투스로 상대를 찾을 수 없어요.',
+}
+
+const BLUETOOTH_NOT_READY =
+  '블루투스가 아직 준비되지 않았어요.\n블루투스를 껐다 켜고 다시 연결하기를 눌러주세요.'
+
+function pause(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function describe(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
+}
 
 function wrap(cause: unknown, what: string): DomainError {
-  const detail = cause instanceof Error ? cause.message : String(cause)
-  return domainError('not-found', `${what}: ${detail}`, 'ble')
+  return domainError('not-found', `${what}: ${describe(cause)}`, 'ble')
 }
