@@ -176,6 +176,8 @@ export const useChatStore = create<ChatState>((set, get) => {
   let stopListening: (() => void) | null = null
   let unsubscribes: Array<() => void> = []
   let typingTimer: ReturnType<typeof setTimeout> | null = null
+  /** 녹음이 너무 길어지기 전에 끊는 시계 */
+  let recordingTimer: ReturnType<typeof setTimeout> | null = null
   let receiver: ReceiveAsset | null = null
 
   /** 아직 안 보낸 녹음. 화면에는 크기와 길이만 알리고 내용은 여기 둔다 */
@@ -836,13 +838,24 @@ export const useChatStore = create<ChatState>((set, get) => {
       if (active === null || get().recording) return
 
       const started = await active.recorder.start()
-      if (started.ok) set({ recording: true })
+      if (!started.ok) return
+      set({ recording: true })
+
+      // **길어야 20초.** 블루투스로 10초에 40KB 라 그 이상은 몇 분이 걸린다.
+      // 손을 안 떼도 여기서 끊어 보낸다.
+      if (recordingTimer !== null) clearTimeout(recordingTimer)
+      recordingTimer = setTimeout(() => {
+        recordingTimer = null
+        void get().stopRecordingAndSend()
+      }, MAX_VOICE_MS)
     },
 
     async stopRecordingAndSend() {
       const active = deps
       if (active === null || !get().recording) return
 
+      if (recordingTimer !== null) clearTimeout(recordingTimer)
+      recordingTimer = null
       set({ recording: false })
 
       const recorded = await active.recorder.stop()
@@ -882,6 +895,8 @@ export const useChatStore = create<ChatState>((set, get) => {
       const active = deps
       if (active === null) return
 
+      if (recordingTimer !== null) clearTimeout(recordingTimer)
+      recordingTimer = null
       set({ recording: false })
       await active.recorder.cancel()
     },
@@ -1033,3 +1048,6 @@ export const useChatStore = create<ChatState>((set, get) => {
 
 /** 이보다 오래된 사진·음성은 다시 달라고 하지 않는다. 비행 하나 길이다 */
 const TRACK_ASSETS_WITHIN_MS = 12 * 60 * 60 * 1000
+
+/** 음성 메시지 최대 길이. 블루투스로 10초에 40KB 라 그 이상은 몇 분이 걸린다 */
+export const MAX_VOICE_MS = 20_000

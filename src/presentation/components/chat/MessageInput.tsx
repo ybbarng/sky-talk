@@ -104,7 +104,7 @@ export function MessageInput({
           style={{ paddingHorizontal: theme.spacing.sm }}
         >
           <Text variant="caption" color="danger">
-            녹음 중… 손을 떼면 보내져요. 여기를 누르면 버려요.
+            녹음 중… 손을 떼면 보내져요. 20초가 되면 저절로 끝나요. 여기를 누르면 버려요.
           </Text>
         </Pressable>
       )}
