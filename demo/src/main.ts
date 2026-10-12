@@ -1,31 +1,30 @@
 import type { Message } from '@/domain/message/Message'
 import { type StickerPose, stickerPoses } from '@/domain/message/MessageContent'
-import { retryDelayMillis } from '@/domain/connection/ConnectionState'
 import { progress, remainingMs, remainingWords } from '@/domain/flight/FlightTimer'
 import type { PeerId } from '@/domain/peer/PeerId'
 import { ulidGenerator } from '@/infrastructure/platform/UlidGenerator'
-import { type ConnectPhase, copyFor } from '@/presentation/copy/connecting'
+import { type ConnectPhase, copyFor, longHintFor } from '@/presentation/copy/connecting'
 import { stickerMeaning } from '@/presentation/copy/stickers'
-import { decidePhase } from '@/presentation/stores/connectPhase'
+import { decidePhase, shouldShowHint } from '@/presentation/stores/connectPhase'
 import { type Expression, character, icon, sticker } from './art'
 import { Device } from './Device'
-import { type Side, VirtualNetwork } from './network'
+import { CABIN_ADDRESS, type Side, World } from './world'
 
 /**
- * 가상 기기 두 대를 띄운다.
+ * 비행기 안의 가상 기기 두 대.
  *
- * **진짜 앱 코드를 돌린다.** 핫스팟을 켜고, 서로 찾고, 붙고, 인사하고,
- * 말을 주고받고, 끊겼다 다시 붙으면 놓친 말을 되찾는다. 전부
- * `src/` 의 것이다.
+ * **진짜 앱 코드를 돌린다.** 블루투스와 기내 Wi-Fi 를 같이 열어두고
+ * 먼저 이어지는 쪽을 쓰고, 한쪽이 끊기면 다른 쪽으로 옮겨 타고,
+ * 끊겼다 다시 붙으면 놓친 말을 되찾는다. 전부 `src/` 의 것이다.
  *
  * 흉내 내는 것은 셋뿐이다.
  *
- *   · 선 (진짜 Wi-Fi 대신 브라우저 안에서 바이트를 나른다)
+ *   · 선 (블루투스·Wi-Fi 대신 브라우저 안에서 바이트를 나른다)
  *   · 저장소 (SQLite 대신 메모리)
  *   · 화면 (React Native 대신 HTML)
  */
 
-const net = new VirtualNetwork()
+const world = new World()
 
 const android = new Device(
   'host',
@@ -35,7 +34,7 @@ const android = new Device(
     character: 'orion',
     peerNickname: '여자친구',
   },
-  net,
+  world,
   ulidGenerator,
 )
 
@@ -47,11 +46,12 @@ const iphone = new Device(
     character: 'mira',
     peerNickname: '남자친구',
   },
-  net,
+  world,
   ulidGenerator,
 )
 
 const devices: Record<Side, Device> = { host: android, guest: iphone }
+const NAME: Record<Side, string> = { host: '안드로이드', guest: '아이폰' }
 
 /** 화면에만 있는 것. 기기 상태가 아니다 */
 const ui = {
@@ -60,7 +60,13 @@ const ui = {
   logOpen: true,
   /** 길게 누르고 있는 이모티콘. 뜻만 보여주고 보내지 않는다 */
   asking: null as StickerPose | null,
+  /** 시나리오가 도는 중이면 다른 것을 못 누르게 한다 */
+  busy: false,
 }
+
+/** 이어진 때. 맨 위 띠는 이어지고 3초 뒤 사라진다 (`ConnectionBar`) */
+const linkedAt: Record<Side, number | null> = { host: null, guest: null }
+const BAR_HIDE_AFTER_MS = 3_000
 
 let dirty = false
 function paint(): void {
@@ -72,10 +78,16 @@ function paint(): void {
   })
 }
 
-android.onChange = paint
-iphone.onChange = paint
-net.onChange = paint
-net.onLog = paint
+for (const device of [android, iphone]) {
+  device.onChange = () => {
+    const live = device.connection.isUsable()
+    if (live && linkedAt[device.side] === null) linkedAt[device.side] = Date.now()
+    if (!live) linkedAt[device.side] = null
+    paint()
+  }
+}
+world.onChange = paint
+world.onLog = paint
 
 /* ── 그리기 ───────────────────────────────────────── */
 
@@ -168,14 +180,12 @@ function renderLog(device: Device): string {
 
 /** **진짜 판단 코드를 쓴다.** src/presentation/stores/connectPhase.ts */
 function phaseOf(device: Device): ConnectPhase {
-  const onOurNetwork = device.side === 'host' ? net.hotspotOn : net.guestJoined
-
   return decidePhase({
     role: device.side,
     connection: device.connection,
-    bluetoothOn: onOurNetwork,
+    bluetoothOn: world.bluetoothOn[device.side],
     peerFound: false,
-    everConnected: device.messages.length > 0,
+    everConnected: device.everConnected,
   })
 }
 
@@ -184,24 +194,34 @@ function renderConnecting(device: Device): string {
    * **상대를 넘겨다보지 않는다.**
    *
    * 인사(`hello`)를 주고받기 전에는 상대가 무엇을 골랐는지 알 길이
-   * 없다. 데모는 두 기기를 한 화면에 들고 있어서 몰래 볼 수 있지만,
-   * 그러면 실제 첫 연결과 다른 것을 보여주게 된다.
-   *
-   * 다만 **누구를 기다리는지는 안다.** 첫 실행 안내에서 적어둔 별명을
-   * 쓴다. 앱의 `peerName(peer, profile.peerNickname)` 과 같다.
+   * 없다. 다만 **누구를 기다리는지는 안다.** 첫 실행 안내에서 적어둔
+   * 별명을 쓴다. 앱의 `peerName(peer, profile.peerNickname)` 과 같다.
    */
   const peerName = device.peerName ?? device.profile.peerNickname
+  const phase = phaseOf(device)
 
   // **진짜 문구를 쓴다.** src/presentation/copy/connecting.ts
-  const copy = copyFor(phaseOf(device), peerName)
+  const copy = copyFor(phase, peerName)
 
   const action = copy.action === undefined
     ? ''
     : `<button class="action" data-fix="${device.side}">${esc(copy.action)}</button>`
 
+  // 한참 못 찾으면 도움말을 덧붙인다. 언제 띄울지도 진짜 코드가 정한다.
+  // 기내 Wi-Fi 이야기는 여기서만 한다.
+  const elapsed = Date.now() - device.unlinkedSince
+  const hint = shouldShowHint(phase, elapsed)
+    ? (() => {
+        const long = longHintFor(device.side, peerName)
+        return `<div class="hint"><b>${esc(long.title)}</b><ul>`
+          + long.lines.map(line => `<li>${esc(line)}</li>`).join('')
+          + '</ul></div>'
+      })()
+    : ''
+
   return '<div class="connecting">'
     + `<div class="dim">${character(device.peerCharacter, 'sleeping', 104)}</div>`
-    + `<h2>${esc(copy.title)}</h2><p>${esc(copy.detail)}</p>${action}`
+    + `<h2>${esc(copy.title)}</h2><p>${esc(copy.detail)}</p>${action}${hint}`
     + '</div>'
 }
 
@@ -240,22 +260,43 @@ function renderFlight(device: Device): string {
     + `<div class="left${arrived ? ' arrived' : ''}">${esc(remainingWords(left))}</div>`
     + '</div>'
 }
+/** 내 말 중 아직 못 보낸 것. 앱의 `pendingCount` 와 같다 */
+function pendingOf(device: Device): number {
+  let count = 0
+  for (const message of device.messages) {
+    if (!message.isMine(device.profile.me)) continue
+    if (message.delivery === 'pending' || message.delivery === 'draft') count += 1
+  }
+  return count
+}
 
+/**
+ * 맨 위 띠. **앱의 `ConnectionBar` 와 같은 규칙으로 그린다.**
+ *
+ *   · 이어지면 어느 길로 이어졌는지 적고 3초 뒤 사라진다
+ *   · 짧은 끊김은 알리지 않는다. "다시 잇는 중" 으로 조용히 기다린다
+ */
 function renderLinkbar(device: Device): string {
   const state = device.connection
+  const pending = pendingOf(device)
+  const waiting = pending > 0 ? ` · 쓴 말 ${pending}개 보관 중` : ''
 
   if (state.isUsable()) {
-    return `<div class="linkbar ok">${icon('wifi', 13)}연결됨</div>`
-  }
-  if (device.messages.length > 0) {
-    return `<div class="linkbar bad">${icon('alert', 13)}연결이 끊겼어요 · 다시 붙는 중</div>`
+    const at = linkedAt[device.side]
+    if (at !== null && Date.now() - at > BAR_HIDE_AFTER_MS) return ''
+    const ble = state.link === 'ble'
+    return `<div class="linkbar ok">${icon(ble ? 'bluetooth' : 'wifi', 13)}`
+      + `${ble ? '블루투스로 이어져 있어요' : 'Wi-Fi 로 이어져 있어요'}</div>`
   }
 
-  // **영어 단계 이름을 띄우지 않는다.** `searching` 이라고 적어두면
-  // 앱이 고장 난 줄 안다. 아래 로그 창에는 그대로 적어둔다.
-  const waiting = state.phase === 'searching' || state.phase === 'handshaking'
-  return `<div class="linkbar idle">${icon('wifi', 13)}`
-    + `${waiting ? '상대를 찾는 중' : '아직 연결 전이에요'}</div>`
+  if (!device.announceDisconnect) {
+    return `<div class="linkbar idle">${icon('refresh', 13)}다시 잇는 중...${waiting}</div>`
+  }
+
+  if (state.phase === 'handshaking') {
+    return `<div class="linkbar idle">${icon('refresh', 13)}이어지는 중...</div>`
+  }
+  return `<div class="linkbar idle">${icon('refresh', 13)}찾는 중...${waiting}</div>`
 }
 
 function renderDrawer(device: Device): string {
@@ -297,15 +338,13 @@ function renderComposer(device: Device): string {
  * 위쪽 띠.
  *
  * **두 운영체제가 다르게 그린다.** 아이폰은 배터리가 가로로 눕고,
- * 안드로이드는 세로로 선다. 비행기 표시도 자리가 다르다.
+ * 안드로이드는 세로로 선다. 둘 다 비행기 모드다.
  */
 function renderStatusbar(device: Device): string {
-  const hosting = net.hotspotOn && device.side === 'host'
-  const joined = net.guestJoined && device.side === 'guest'
-
+  const side = device.side
   const right = '<span class="right">'
-    + (hosting ? '<span>핫스팟</span>' : '')
-    + (joined ? icon('wifi', 12) : '')
+    + (world.bluetoothOn[side] ? icon('bluetooth', 12) : '')
+    + (world.wifiJoined[side] ? icon('wifi', 12) : '')
     + '<span>✈︎</span><span class="batt"></span></span>'
 
   return `<div class="statusbar"><span>${clockOf(new Date())}</span>${right}</div>`
@@ -322,66 +361,90 @@ function renderPhone(device: Device): string {
             : renderConnecting(device))
 }
 
+
 function renderPanel(): string {
-  const linked = net.isLinked()
+  const live = android.connection.isUsable() && iphone.connection.isUsable()
+  const off = ui.busy ? 'disabled' : ''
 
   /*
-    **여기 있는 것은 사람이 폰으로 하는 일뿐이다.**
+    **여기 있는 것은 사람이 하는 일뿐이다.**
 
-    핫스팟을 켜고, Wi-Fi 를 고르고, 멀어졌다 돌아온다. 서로 찾아
-    붙는 것은 앱이 알아서 하므로 누를 것이 없다. 아래 두 줄은
-    좁고 나쁜 길을 흉내 내는 손잡이다.
+    블루투스를 켜고, 기내 Wi-Fi 에 붙고, 자리를 옮긴다. 서로 찾아 붙고
+    길을 옮겨 타는 것은 앱이 알아서 하므로 누를 것이 없다. 폰마다 켜고
+    끄는 것은 각 폰 위에 있다.
   */
-  return '<button data-act="auto">바로 연결하기</button>'
+  return `<button data-act="auto" ${off}>바로 연결하기</button>`
     + '<span class="sep"></span>'
-    + `<button class="${net.hotspotOn ? 'on' : ''}" data-act="hotspot">`
-    + `${net.hotspotOn ? '핫스팟 끄기' : '핫스팟 켜기'}</button>`
-    + `<button class="${net.guestJoined ? 'on' : ''}" data-act="join">`
-    + `${net.guestJoined ? 'Wi-Fi 에서 나가기' : 'Wi-Fi 에 들어가기'}</button>`
+    + `<button class="${world.seatsNear ? '' : 'on'}" data-act="seats" ${off}>`
+    + `${world.seatsNear ? '멀리 떨어져 앉기' : '가까이 앉기'}</button>`
+    + `<button class="${world.isolated ? 'on' : ''}" data-act="isolate" ${off}>손님끼리 막힌 Wi-Fi</button>`
     + '<span class="sep"></span>'
-    + `<button data-act="drop" ${linked ? '' : 'disabled'}>멀어지기</button>`
-    + `<button data-act="reconnect" ${net.jammed ? '' : 'disabled'}>돌아오기</button>`
-    + `<button data-act="scenario" ${linked ? '' : 'disabled'}>끊겼다 되찾기 해보기</button>`
+    + `<button data-act="switch" ${off}>멀어져도 Wi-Fi 로 이어가기</button>`
+    + `<button data-act="scenario" ${live && !ui.busy ? '' : 'disabled'}>끊겼다 되찾기</button>`
     + '<span class="sep"></span>'
-    + `<button data-act="flight" ${linked ? '' : 'disabled'}>비행 3시간으로 맞추기</button>`
-    + `<button data-act="flight-near" ${linked ? '' : 'disabled'}>거의 도착으로</button>`
-    + `<button data-act="flight-off" ${linked ? '' : 'disabled'}>비행 치우기</button>`
+    + `<button data-act="flight" ${live ? '' : 'disabled'}>비행 3시간으로 맞추기</button>`
+    + `<button data-act="flight-near" ${live ? '' : 'disabled'}>거의 도착으로</button>`
+    + `<button data-act="flight-off" ${live ? '' : 'disabled'}>비행 치우기</button>`
     + '<span class="sep"></span>'
-    + `<button class="${net.chop > 1 ? 'on' : ''}" data-act="chop">바이트 쪼개기</button>`
-    + `<button class="${net.lossRate > 0 ? 'on' : ''}" data-act="loss">10% 잃어버리기</button>`
-    + `<button class="${net.latencyMs > 200 ? 'on' : ''}" data-act="slow">느린 망</button>`
+    + `<button class="${world.chop > 1 ? 'on' : ''}" data-act="chop">바이트 쪼개기</button>`
+    + `<button class="${world.slow ? 'on' : ''}" data-act="slow">느린 선</button>`
     + '<span class="sep"></span>'
     + `<button data-act="theme">${ui.theme === 'dark' ? '밝은 화면' : '어두운 화면'}</button>`
     + `<button class="${ui.logOpen ? 'on' : ''}" data-act="logtoggle">오간 기록</button>`
 }
 
+/** 폰 위에 붙는 손잡이. 그 폰의 주인이 설정에서 하는 일이다 */
+function renderControls(side: Side): string {
+  const bt = world.bluetoothOn[side]
+  const wifi = world.wifiJoined[side]
+  return `<button class="${bt ? 'on' : ''}" data-bt="${side}">${icon('bluetooth', 13)}블루투스 ${bt ? '켜짐' : '꺼짐'}</button>`
+    + `<button class="${wifi ? 'on' : ''}" data-wifi="${side}">${icon('wifi', 13)}기내 Wi-Fi ${wifi ? CABIN_ADDRESS[side] : '안 붙음'}</button>`
+}
+
+function linkName(link: string | null): string {
+  return link === 'ble' ? '블루투스' : link === 'wifi' ? 'Wi-Fi' : ''
+}
+
 function renderNetLog(): string {
   if (!ui.logOpen) return ''
 
-  const rows = net.log.slice(-60).reverse().map(event => {
-    const who = event.side === 'net' ? '망' : event.side === 'host' ? '안드로이드' : '아이폰'
+  const rows = world.log.slice(-80).reverse().map(event => {
+    const who = event.side === 'net' ? '비행기' : NAME[event.side]
+    const tag = event.link === null ? '' : `<span class="tag ${event.link}">${linkName(event.link)}</span>`
     return `<div class="ev ${event.kind}"><span class="who">${who}</span>`
-      + `<span class="txt">${esc(event.text)}</span></div>`
+      + `<span class="txt">${tag}${esc(event.text)}</span></div>`
   }).join('')
 
   /*
     단계 이름은 **폰 밖에** 둔다.
 
     `need-hotspot` 같은 말은 앱 화면에 안 뜬다. 여기 적어두는 이유는
-    진짜 `decidePhase` 가 무엇을 골랐는지 보여주기 위해서다.
+    진짜 `decidePhase` 가 무엇을 골랐는지, 진짜 `CompositeTransport` 가
+    어느 길을 쓰는지 보여주기 위해서다.
   */
   const nameOf = (device: Device): string =>
-    device.connection.isUsable() ? '<code>이어짐</code>' : `<code>${phaseOf(device)}</code>`
+    device.connection.isUsable()
+      ? `<code>${linkName(device.connection.link)}로 이어짐</code>`
+      : `<code>${phaseOf(device)}</code>`
 
-  const phases = `<div class="phases">지금 단계 · 안드로이드 ${nameOf(android)}`
-    + ` · 아이폰 ${nameOf(iphone)}</div>`
+  const linkState = (device: Device): string =>
+    (['ble', 'wifi'] as const)
+      .map(kind => `${linkName(kind)} ${device.links[kind].currentState().isUsable() ? '●' : '○'}`)
+      .join(' · ')
+
+  const phases = '<div class="phases">'
+    + `안드로이드 ${nameOf(android)} <span>${linkState(android)}</span><br>`
+    + `아이폰 ${nameOf(iphone)} <span>${linkState(iphone)}</span></div>`
+
+  const sum = (kind: 'ble' | 'wifi') => android.links[kind].bytesOut + iphone.links[kind].bytesOut
+  const rejected = (['ble', 'wifi'] as const)
+    .reduce((n, kind) => n + android.links[kind].rejected + iphone.links[kind].rejected, 0)
 
   return '<div class="netlog"><div class="netlog-head">오간 것</div>'
     + `<div class="events">${rows || '<div class="ev info"><span class="txt">아직 아무 일도 없어요</span></div>'}</div>`
     + phases
-    + `<div class="bytes">보낸 바이트 · 안드로이드 ${android.transport.bytesOut}B · 아이폰 ${iphone.transport.bytesOut}B`
-    + `${android.transport.rejected + iphone.transport.rejected > 0
-        ? ` · 버려진 봉투 ${android.transport.rejected + iphone.transport.rejected}` : ''}</div></div>`
+    + `<div class="bytes">오간 바이트 · 블루투스 ${sum('ble')}B · Wi-Fi ${sum('wifi')}B`
+    + `${rejected > 0 ? ` · 버려진 봉투 ${rejected}` : ''}</div></div>`
 }
 
 function render(): void {
@@ -395,6 +458,8 @@ function render(): void {
 
   document.body.className = ui.theme === 'light' ? 'light' : ''
   el('panel').innerHTML = renderPanel()
+  el('controls-host').innerHTML = renderControls('host')
+  el('controls-guest').innerHTML = renderControls('guest')
   el('screen-host').innerHTML = renderPhone(android)
   el('screen-guest').innerHTML = renderPhone(iphone)
   el('netlog-slot').innerHTML = renderNetLog()
@@ -420,100 +485,80 @@ function el(id: string): HTMLElement {
 
 /* ── 조작 ─────────────────────────────────────────── */
 
-/**
- * 붙는 쪽이 찾아 나선다.
- *
- * **앱에는 "상대 찾아 잇기" 같은 버튼이 없다.** 켜져 있는 동안
- * 알아서 계속 찾는다. 사람이 누를 것은 핫스팟과 Wi-Fi 뿐이다.
- * 그래서 데모도 버튼 대신 아래 `setInterval` 이 계속 두드린다.
- */
-async function tryConnect(): Promise<void> {
-  if (net.isLinked()) return
+/*
+  **"상대 찾아 잇기" 버튼은 없다.** 앱에 그런 버튼이 없기 때문이다.
+  앱을 여는 순간 두 길을 같이 열고, 각 길이 알아서 계속 찾는다.
+  다시 거는 간격도 앱 것(`retryDelayMillis`)을 그대로 쓴다.
+*/
+void android.start()
+void iphone.start()
 
-  const failed = await iphone.connect()
-  if (failed !== null) {
-    paint()
-    return
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function waitUntil(check: () => boolean, timeoutMs: number): Promise<boolean> {
+  const until = Date.now() + timeoutMs
+  while (Date.now() < until) {
+    if (check()) return true
+    await sleep(200)
   }
+  return check()
+}
 
-  // 붙었으면 여는 쪽도 받는다. 선이 없으면 `acceptIncoming` 이 무시한다.
-  android.acceptIncoming()
+const bothLive = () => android.connection.isUsable() && iphone.connection.isUsable()
+
+async function scenario(run: () => Promise<void>): Promise<void> {
+  if (ui.busy) return
+  ui.busy = true
   paint()
-}
-
-/**
- * 계속 두드린다. **간격은 진짜 앱 것을 쓴다.**
- *
- * 실패할 때마다 1, 2, 4, 8, 16, 30초로 늘린다(`retryDelayMillis`).
- * 쉬지 않고 두드리면 배터리가 먼저 죽고, 그러면 세 시간을 못 버틴다.
- *
- * 그래서 조건이 갖춰져도 **곧바로 붙지 않을 수 있다.** 실제 앱이 그렇다.
- * 기다리기 싫으면 위의 `돌아오기` 처럼 사람이 다시 시도할 수 있다
- * (앱의 `retryNow`).
- */
-let knocking = false
-let attempt = 0
-let knockTimer: ReturnType<typeof setTimeout> | null = null
-
-function scheduleKnock(): void {
-  if (knockTimer !== null) return
-
-  const delay = attempt === 0 ? 300 : retryDelayMillis(attempt)
-  if (attempt > 0) {
-    net.note('guest', `${Math.round(delay / 1000)}초 뒤에 다시 걸어볼게요`)
-  }
-
-  knockTimer = setTimeout(() => {
-    knockTimer = null
-    void knock()
-  }, delay)
-}
-
-async function knock(): Promise<void> {
-  if (knocking) return
-  if (net.isLinked()) {
-    attempt = 0
-    return
-  }
-  if (!net.hotspotOn || !net.guestJoined || net.jammed) {
-    // 아직 조건이 안 됐다. 이건 실패로 세지 않는다
-    attempt = 0
-    scheduleKnock()
-    return
-  }
-
-  knocking = true
   try {
-    await tryConnect()
-    attempt = net.isLinked() ? 0 : attempt + 1
+    await run()
   } finally {
-    knocking = false
-    scheduleKnock()
+    ui.busy = false
+    paint()
   }
 }
 
-scheduleKnock()
-
-/** 사람이 다시 시도한다. 기다리지 않고 지금 건다 (앱의 `retryNow`) */
-function knockNow(): void {
-  attempt = 0
-  if (knockTimer !== null) clearTimeout(knockTimer)
-  knockTimer = null
-  void knock()
+/** 둘 다 블루투스를 켜고 가까이 앉는다 */
+async function autoConnect(): Promise<void> {
+  world.setSeatsNear(true)
+  world.setBluetooth('host', true)
+  await sleep(300)
+  world.setBluetooth('guest', true)
+  await waitUntil(bothLive, 8000)
 }
 
-/** 핫스팟 켜기부터 잇기까지 한 번에 */
-async function autoConnect(): Promise<void> {
-  net.setJammed(false)
-  net.setHotspot(true)
-  paint()
-  await sleep(400)
+/**
+ * 블루투스로 이야기하다 멀어져도 기내 Wi-Fi 로 이어간다.
+ *
+ * 2026-09 비행에서 실제로 필요했던 것이다. 자리가 멀어 블루투스가
+ * 안 닿았는데, 기내 Wi-Fi 는 있었다. **옮겨 타는 것은 진짜
+ * `CompositeTransport` 가 한다.** 데모는 자리만 옮긴다.
+ */
+async function switchScenario(): Promise<void> {
+  world.note('net', '── 멀어져도 Wi-Fi 로 이어가기 ──')
+  world.setIsolated(false)
+  await autoConnect()
 
-  net.setGuestJoined(true)
-  paint()
-  await sleep(400)
+  world.note('net', '둘 다 기내 Wi-Fi 에 붙어요. 아이폰이 안드로이드를 찾아요')
+  world.setWifi('host', true)
+  await sleep(300)
+  world.setWifi('guest', true)
+  await waitUntil(
+    () => android.links.wifi.currentState().isUsable() && iphone.links.wifi.currentState().isUsable(),
+    15000,
+  )
 
-  knockNow()
+  await android.sendText('블루투스로 보낸 말')
+  await sleep(1200)
+
+  world.note('net', '두 길이 다 이어져 있어요. 이제 멀리 떨어져 앉아요')
+  world.setSeatsNear(false)
+  await sleep(1200)
+
+  await android.sendText('멀어진 뒤에 보낸 말')
+  await iphone.sendText('Wi-Fi 로 잘 와요')
 }
 
 /**
@@ -523,92 +568,57 @@ async function autoConnect(): Promise<void> {
  * 다시 붙을 때 도착하고, 상대가 못 받은 것도 인사하며 되찾는다.
  */
 async function recoveryScenario(): Promise<void> {
-  net.note('net', '── 끊겼다 되찾기를 해볼게요 ──')
+  world.note('net', '── 끊겼다 되찾기 ──')
 
   await android.sendText('이건 끊기기 전에 보낸 말')
-  await sleep(600)
-
-  net.setJammed(true)
-  android.transport.lose()
-  iphone.transport.lose()
-  paint()
   await sleep(700)
+
+  world.note('net', '멀리 떨어지고 기내 Wi-Fi 도 끊겨요')
+  world.setSeatsNear(false)
+  world.setWifi('host', false)
+  world.setWifi('guest', false)
+  await sleep(800)
 
   await android.sendText('끊긴 동안 쓴 말 하나')
   await sleep(200)
   await android.sendText('끊긴 동안 쓴 말 둘')
   await sleep(200)
   await iphone.sendText('나도 끊긴 동안 썼어')
-  await sleep(700)
+  await sleep(1800)
 
-  net.note('net', '신호를 돌려줍니다. 앱이 알아서 다시 붙어요')
-  net.setJammed(false)
-  knockNow()
-  paint()
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
+  world.note('net', '다시 가까이 앉아요. 앱이 알아서 다시 붙어요')
+  world.setSeatsNear(true)
+  await waitUntil(bothLive, 8000)
 }
 
 document.addEventListener('click', event => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-act],[data-send],[data-nudge],[data-drawer],[data-closedrawer],[data-pose],[data-fix]')
+  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-act],[data-bt],[data-wifi],[data-send],[data-nudge],[data-drawer],[data-closedrawer],[data-pose],[data-fix]')
   if (target === null) return
+  if ((target as HTMLButtonElement).disabled) return
 
   const act = target.dataset.act
 
-  if (act === 'auto') return void autoConnect()
-
-  if (act === 'scenario') return void recoveryScenario()
+  if (act === 'auto') return void scenario(autoConnect)
+  if (act === 'switch') return void scenario(switchScenario)
+  if (act === 'scenario') return void scenario(recoveryScenario)
 
   // 안드로이드가 정하면 아이폰에도 건너간다. 진짜 봉투가 오간다.
   if (act === 'flight') return void android.shareFlight(3 * 60 * 60 * 1000)
   if (act === 'flight-near') return void android.shareFlight(90 * 1000)
   if (act === 'flight-off') return void android.shareFlight(0)
 
-  if (act === 'hotspot') {
-    net.setHotspot(!net.hotspotOn)
-    if (!net.hotspotOn) {
-      android.transport.lose()
-      iphone.transport.lose()
-    }
-    return paint()
-  }
-
-  if (act === 'join') {
-    net.setGuestJoined(!net.guestJoined)
-    return paint()
-  }
-
-  if (act === 'drop') {
-    net.setJammed(true)
-    android.transport.lose()
-    iphone.transport.lose()
-    return paint()
-  }
-
-  if (act === 'reconnect') {
-    // 신호만 돌려준다. 붙는 건 앱이 알아서 한다.
-    net.setJammed(false)
-    knockNow()
-    return paint()
-  }
+  if (act === 'seats') return world.setSeatsNear(!world.seatsNear)
+  if (act === 'isolate') return world.setIsolated(!world.isolated)
 
   if (act === 'chop') {
-    net.chop = net.chop > 1 ? 1 : 12
-    net.note('net', net.chop > 1 ? '바이트를 12조각으로 쪼개 보내요' : '통째로 보내요')
-    return paint()
-  }
-
-  if (act === 'loss') {
-    net.lossRate = net.lossRate > 0 ? 0 : 0.1
-    net.note('net', net.lossRate > 0 ? '10% 를 잃어버려요' : '안 잃어버려요')
+    world.chop = world.chop > 1 ? 1 : 12
+    world.note('net', world.chop > 1 ? '바이트를 12조각으로 쪼개 보내요' : '통째로 보내요')
     return paint()
   }
 
   if (act === 'slow') {
-    net.latencyMs = net.latencyMs > 200 ? 40 : 600
-    net.note('net', `한 번 가는 데 ${net.latencyMs}ms`)
+    world.slow = !world.slow
+    world.note('net', world.slow ? '선을 여덟 배 느리게 해요' : '선을 원래 빠르기로 돌려요')
     return paint()
   }
 
@@ -622,17 +632,24 @@ document.addEventListener('click', event => {
     return paint()
   }
 
-  /*
-    이어지는 화면의 "핫스팟 켜러 가기" / "Wi-Fi 고르러 가기".
+  if (target.dataset.bt !== undefined) {
+    const side = target.dataset.bt as Side
+    return world.setBluetooth(side, !world.bluetoothOn[side])
+  }
 
-    **누른다고 붙지 않는다.** 설정으로 데려다줄 뿐이다. 상대가 핫스팟을
-    안 켰으면 목록에 아무것도 없고, `setGuestJoined` 가 그렇다고 적는다.
-    붙는 것은 조건이 갖춰진 뒤 앱이 알아서 한다.
+  if (target.dataset.wifi !== undefined) {
+    const side = target.dataset.wifi as Side
+    return world.setWifi(side, !world.wifiJoined[side])
+  }
+
+  /*
+    이어지는 화면의 "블루투스 켜러 가기".
+
+    **누른다고 붙지 않는다.** 설정으로 데려다줄 뿐이다. 여기서는 그
+    폰의 블루투스를 켠 것으로 친다. 붙는 것은 앱이 알아서 한다.
   */
   if (target.dataset.fix !== undefined) {
-    if (target.dataset.fix === 'host') net.setHotspot(true)
-    else net.setGuestJoined(true)
-    return paint()
+    return world.setBluetooth(target.dataset.fix as Side, true)
   }
 
   const side = (target.dataset.send ?? target.dataset.nudge ?? target.dataset.drawer
@@ -749,21 +766,18 @@ function unreadCount(device: Device): number {
 }
 
 setInterval(() => {
-  if (!net.isLinked()) return
-  if (unreadCount(android) > 0) void android.readAll()
-  if (unreadCount(iphone) > 0) void iphone.readAll()
+  if (unreadCount(android) > 0 && android.connection.isUsable()) void android.readAll()
+  if (unreadCount(iphone) > 0 && iphone.connection.isUsable()) void iphone.readAll()
 }, 900)
 
 /*
-  비행기를 움직인다.
+  1초마다 다시 그린다.
 
-  앱은 1분마다 다시 센다. 초를 안 보여주니 그걸로 충분하고 배터리도 는다.
-  **데모는 1초마다 센다.** 여기서는 "거의 도착" 이 90초짜리라 1분을
-  기다리면 움직이는 걸 볼 수 없다.
+  비행기를 움직이고, 3초 지난 띠를 걷고, 오래 못 찾으면 도움말을 띄운다.
+  앱은 비행기를 1분마다 다시 세지만 데모는 "거의 도착" 이 90초짜리라
+  1초마다 센다.
 */
-setInterval(() => {
-  if (android.arrivesAt !== null || iphone.arrivesAt !== null) render()
-}, 1000)
+setInterval(render, 1000)
 
-net.note('net', '가상 망을 열었어요. 핫스팟부터 켜보세요')
+world.note('net', '비행기 모드를 켠 두 폰이에요. 블루투스부터 켜보세요')
 render()

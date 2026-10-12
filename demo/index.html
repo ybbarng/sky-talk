@@ -2,7 +2,8 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Skywalkie — 가상 기기 두 대</title>
+<title>SkyTalk — 비행기 안의 가상 폰 두 대</title>
+<meta name="description" content="인터넷 없는 비행기 안에서 두 사람이 블루투스와 기내 Wi-Fi 로 대화하는 앱 SkyTalk 을, 진짜 앱 코드 그대로 브라우저에서 돌려보는 데모입니다.">
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 
 <!--
@@ -12,7 +13,7 @@
   그걸 그대로 묶어서 가상 기기 두 대에 얹었다.
 
   흉내 내는 것은 셋뿐이다.
-    · 선     — 진짜 Wi-Fi 대신 브라우저 안에서 바이트를 나른다
+    · 선     — 블루투스·Wi-Fi 대신 브라우저 안에서 바이트를 나른다
     · 저장소 — SQLite 대신 메모리
     · 화면   — React Native 대신 HTML
 
@@ -157,7 +158,25 @@ h1 { font-size: 19px; margin: 0; }
 }
 .linkbar.ok { background: var(--success); color: var(--on-status); }
 .linkbar.bad { background: var(--danger); color: var(--on-status); }
-.linkbar.idle { background: var(--raised); color: var(--muted); }
+.linkbar.idle { background: var(--muted); color: var(--on-status); }
+
+/* 폰 위 손잡이. 그 폰의 주인이 설정에서 하는 일이다 */
+.controls { display: flex; gap: 6px; }
+.controls button {
+  font: inherit; font-size: 11.5px; font-weight: 600; padding: 5px 10px;
+  border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border); background: var(--raised); color: var(--muted);
+}
+.controls button.on { background: var(--peer); color: var(--peer-text); border-color: transparent; }
+
+/* 한참 못 찾으면 덧붙는 도움말 */
+.connecting .hint {
+  margin-top: 6px; text-align: left; font-size: 11.5px; color: var(--muted);
+  background: var(--surface); border-radius: 12px; padding: 10px 12px;
+}
+.connecting .hint b { color: var(--text); font-size: 12px; }
+.connecting .hint ul { margin: 6px 0 0; padding-left: 16px; }
+.connecting .hint li { margin-top: 3px; }
 /*
   목적지까지 얼마나 왔나.
   가로폭이 여정 전체다. 비행기가 왼쪽에서 오른쪽으로 간다.
@@ -280,6 +299,7 @@ h1 { font-size: 19px; margin: 0; }
   border-top: 1px solid var(--border); flex: none;
 }
 .phases code { color: var(--muted); font-family: ui-monospace, monospace; }
+.phases span { color: var(--faint); }
 
 .drawer { border-top: 1px solid var(--border); background: var(--surface); padding: 9px 0; flex: none; }
 .drawer .head { display: flex; justify-content: space-between; padding: 0 14px 5px; font-size: 11.5px; color: var(--muted); }
@@ -311,6 +331,12 @@ h1 { font-size: 19px; margin: 0; }
 .ev { display: flex; gap: 8px; padding: 3px 14px; }
 .ev .who { color: var(--faint); flex: none; width: 58px; }
 .ev .txt { color: var(--muted); word-break: break-all; }
+.ev .tag {
+  display: inline-block; font-size: 9.5px; padding: 0 5px; margin-right: 5px;
+  border-radius: 4px; border: 1px solid var(--border); color: var(--faint);
+}
+.ev .tag.wifi { color: var(--success); border-color: var(--success); }
+.ev .tag.ble { color: var(--peer); border-color: var(--peer); }
 .ev.send .txt { color: var(--me); }
 .ev.recv .txt { color: var(--peer); }
 .ev.warn .txt { color: var(--danger); }
@@ -321,17 +347,19 @@ svg { display: block; }
 .legend code { background: rgba(128,128,128,.14); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 </style>
 
-<h1>Skywalkie — 가상 기기 두 대</h1>
+<h1>SkyTalk — 비행기 안의 가상 폰 두 대</h1>
 <p class="sub">
-  <b>진짜 앱 코드가 돕니다.</b> 핫스팟을 켜고, 서로 찾고, 붙고, 인사하고, 말을 주고받아요.
-  흉내 내는 건 선·저장소·화면 셋뿐이에요.
+  인터넷 없는 비행기에서 떨어져 앉은 두 사람이 대화하는 앱이에요.
+  <b>진짜 앱 코드가 돕니다.</b> 블루투스와 기내 Wi-Fi 를 같이 열어두고 먼저 이어지는 쪽을 쓰고,
+  한쪽이 끊기면 다른 쪽으로 옮겨 타요. 흉내 내는 건 선·저장소·화면 셋뿐이에요.
 </p>
 
 <div id="panel"></div>
 
 <div class="stage">
   <div class="phone-wrap">
-    <div class="phone-label">내 폰 · <b>안드로이드</b> · 핫스팟을 연다</div>
+    <div class="phone-label">내 폰 · <b>안드로이드</b> · 알리고 기다린다</div>
+    <div class="controls" id="controls-host"></div>
     <div class="phone" data-os="android">
       <div class="camera"></div>
       <div class="screen" id="screen-host"></div>
@@ -342,7 +370,8 @@ svg { display: block; }
   <div id="netlog-slot"></div>
 
   <div class="phone-wrap">
-    <div class="phone-label">여자친구 폰 · <b>아이폰</b> · 들어간다</div>
+    <div class="phone-label">여자친구 폰 · <b>아이폰</b> · 찾아서 건다</div>
+    <div class="controls" id="controls-guest"></div>
     <div class="phone" data-os="ios">
       <div class="island"></div>
       <div class="screen" id="screen-guest"></div>
@@ -352,12 +381,14 @@ svg { display: block; }
 </div>
 
 <p class="legend">
-  <b>핫스팟 켜기 → Wi-Fi 에 들어가기</b> 순서로 눌러보세요.
+  <b>바로 연결하기</b> 를 누르거나, 폰 위의 <b>블루투스</b> 를 둘 다 켜보세요.
   <b>서로 찾아 붙는 건 앱이 알아서 합니다.</b> 앱에는 그런 버튼이 없어요.
-  이어지면 아무 쪽에나 글을 쓰면 실제로 봉투가 만들어져 건너갑니다.
   <br>
-  <code>멀어지기</code> 로 신호를 끊고 글을 쓴 뒤 <code>돌아오기</code> 를 누르면
-  저절로 다시 붙으면서 <b>놓친 말을 되찾는 것</b>까지 진짜로 돕니다.
+  <code>멀어져도 Wi-Fi 로 이어가기</code> 는 블루투스로 이야기하다 자리가 멀어졌을 때
+  기내 Wi-Fi 로 <b>끊기지 않고 옮겨 타는 것</b>을 보여줘요.
+  <code>끊겼다 되찾기</code> 는 끊긴 동안 쓴 말이 다시 이어질 때 <b>빠짐없이 건너가는 것</b>을 보여줘요.
+  <br>
+  <code>손님끼리 막힌 Wi-Fi</code> 를 켜면 Wi-Fi 로는 못 닿아요. 실제 기내 Wi-Fi 에서도 그럴 수 있어요.
 </p>
 
 <script type="module" src="./app.js"></script>

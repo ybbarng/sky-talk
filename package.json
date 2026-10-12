@@ -34,6 +34,7 @@
     "apk": "JAVA_HOME=$(/usr/libexec/java_home -v 17) sh -c \"cd android && ./gradlew assembleRelease\"",
     "release": "tsx scripts/release.ts",
     "demo:build": "tsx demo/build.ts",
+    "demo:publish": "tsx demo/build.ts --publish",
     "demo": "tsx demo/build.ts && python3 -m http.server 8777 --directory demo --bind 127.0.0.1"
   },
   "dependencies": {

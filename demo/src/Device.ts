@@ -21,16 +21,19 @@ import type { CharacterId } from '@/domain/peer/Character'
 import type { PeerId } from '@/domain/peer/PeerId'
 import { systemClock } from '@/domain/shared/Clock'
 import type { IdGenerator } from '@/domain/shared/IdGenerator'
-import { DemoTransport } from './DemoTransport'
+import { ANNOUNCE_DISCONNECT_AFTER_MS } from '@/presentation/stores/connectPhase'
+import { CompositeTransport } from '@/infrastructure/transport/CompositeTransport'
+import { DemoLink } from './DemoLink'
 import { MemoryRepository } from './MemoryRepository'
-import type { Side, VirtualNetwork } from './network'
+import type { Side, World } from './world'
 
 /**
  * 폰 한 대.
  *
  * **여기 있는 것은 전부 진짜 앱 코드다.** 보내기·받기·읽음 표시·
- * 놓친 말 되찾기 모두 `src/application` 의 것을 그대로 쓴다.
- * 흉내 내는 것은 저장소와 선뿐이다.
+ * 놓친 말 되찾기 모두 `src/application` 의 것을 그대로 쓴다. 두 길을
+ * 묶어 먼저 이어지는 쪽을 쓰고 끊기면 옮겨 타는 것도 진짜
+ * `CompositeTransport` 다. 흉내 내는 것은 저장소와 선뿐이다.
  *
  * 실제 앱의 `useChatStore` 와 같은 자리에 있다.
  */
@@ -46,7 +49,17 @@ export interface DeviceProfile {
 export class Device {
   conversation: Conversation
   readonly repository = new MemoryRepository()
-  readonly transport: DemoTransport
+  /** 앱의 `container.ts` 와 같은 순서로 꽂는다. Wi-Fi 먼저, 블루투스 다음 */
+  readonly transport: CompositeTransport
+  readonly links: { readonly wifi: DemoLink; readonly ble: DemoLink }
+
+  /** 한 번이라도 이어진 적 있나. 있으면 "다시 붙는 중" 으로 말한다 */
+  everConnected = false
+  /** 끊긴 것을 화면에 알릴 때가 됐나. 짧은 끊김은 알리지 않는다 */
+  announceDisconnect = false
+  /** 이어지지 않은 채로 언제부터였나. 오래되면 도움말을 띄운다 */
+  unlinkedSince = Date.now()
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   /** 화면에 뿌릴 것들 */
   messages: Message[] = []
@@ -74,11 +87,15 @@ export class Device {
   constructor(
     readonly side: Side,
     readonly profile: DeviceProfile,
-    net: VirtualNetwork,
+    world: World,
     private readonly ids: IdGenerator,
   ) {
     this.conversation = Conversation.start(profile.me)
-    this.transport = new DemoTransport(side, net)
+    this.links = {
+      wifi: new DemoLink(side, 'wifi', world),
+      ble: new DemoLink(side, 'ble', world),
+    }
+    this.transport = new CompositeTransport([this.links.wifi, this.links.ble])
     this.connection = this.transport.currentState()
 
     this.sendMessage = new SendMessage(
@@ -117,10 +134,29 @@ export class Device {
     })
 
     this.transport.onStateChange(state => {
+      const wasUsable = this.connection.isUsable()
       this.connection = state
+
+      // 앱의 `useChatStore` 와 같다. 짧은 끊김은 알리지 않고 기다린다.
+      if (state.isUsable()) {
+        if (this.disconnectTimer !== null) clearTimeout(this.disconnectTimer)
+        this.disconnectTimer = null
+        this.everConnected = true
+        this.announceDisconnect = false
+      } else {
+        if (wasUsable) this.unlinkedSince = Date.now()
+        if (this.everConnected && this.disconnectTimer === null) {
+          this.disconnectTimer = setTimeout(() => {
+            this.disconnectTimer = null
+            if (!this.connection.isUsable()) this.announceDisconnect = true
+            this.onChange?.()
+          }, ANNOUNCE_DISCONNECT_AFTER_MS)
+        }
+      }
       this.onChange?.()
 
-      // **이어지면 곧바로 인사한다.** 이걸 해야 놓친 말을 채울 수 있다.
+      // **이어지면 곧바로 인사한다.** 길을 옮겨 탔을 때도 새 길로 다시 한다.
+      // 인사에서 "몇 번까지 받았다" 를 주고받아야 놓친 말을 채울 수 있다.
       if (state.isUsable()) {
         void (async () => {
           await this.greet()
@@ -130,19 +166,9 @@ export class Device {
     })
   }
 
-  /** 붙어본다. 붙는 쪽은 먼저 찾는다 */
-  async connect(): Promise<string | null> {
-    const result = await this.transport.connect()
-    return result.ok ? null : result.error.detail
-  }
-
-  async disconnect(): Promise<void> {
-    await this.transport.disconnect()
-  }
-
-  /** 상대가 붙어왔다. 여는 쪽이 쓴다 */
-  acceptIncoming(): void {
-    this.transport.acceptIncoming()
+  /** 앱을 연다. 두 길을 같이 열고 각자 알아서 찾는다 */
+  async start(): Promise<void> {
+    await this.transport.connect()
   }
 
   async sendText(raw: string): Promise<void> {
@@ -240,6 +266,10 @@ export class Device {
    * **3초에 한 번만 보낸다.** 한 글자마다 보내면 좁은 길이 막힌다.
    */
   tellTyping(typing: boolean): void {
+    // 앱처럼 넓은 길(Wi-Fi)에서만 보낸다. 블루투스는 좁아 아낀다
+    if (!this.transport.currentState().isUsable()) return
+    if (this.transport.kind !== 'wifi') return
+
     const now = Date.now()
     if (typing && now - this.lastTypingAt < 3000) return
     this.lastTypingAt = typing ? now : 0

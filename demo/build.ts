@@ -8,11 +8,12 @@
  * ```bash
  * pnpm demo          묶고 서버를 띄운다
  * pnpm demo:build    묶기만 한다
+ * pnpm demo:publish <폴더>   공개용으로 묶어 그 폴더에 내보낸다
  * ```
  */
 
 import { build } from 'esbuild'
-import { copyFileSync, readFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -64,9 +65,53 @@ function readEnv(): Record<string, string> {
   return values
 }
 
+/**
+ * 공개용으로 내보낼 곳. `--publish <폴더>` 로 받는다.
+ *
+ * dev.byb.kr 같은 공개 사이트에 올릴 때 쓴다.
+ */
+function publishTarget(): string | null {
+  const at = process.argv.indexOf('--publish')
+  if (at < 0) return null
+  const target = process.argv[at + 1]
+  if (target === undefined) {
+    console.error('--publish 뒤에 내보낼 폴더를 적어주세요')
+    process.exit(1)
+  }
+  return resolve(target)
+}
+
+/**
+ * 공개용 페이지를 만든다.
+ *
+ * 묶은 결과물이라 거기서 고치면 다음에 덮어써진다. 그래서 맨 위에 적어두고,
+ * 돌아갈 곳(허브) 링크를 단다.
+ */
+function publishPage(target: string): void {
+  const html = readFileSync(resolve(root, 'demo/index.html'), 'utf8')
+    .replace(
+      '<!doctype html>',
+      '<!doctype html>\n<!-- 이 폴더는 sky-talk 저장소 demo/ 에서 `pnpm demo:publish` 로 묶은 결과물입니다. 여기서 직접 고치지 말고 소스를 고쳐 다시 묶으세요. -->',
+    )
+    .replace(
+      '<h1>',
+      '<a class="back" href="../">← dev.byb.kr</a>\n<h1>',
+    )
+    .replace(
+      '</style>',
+      '.back { align-self: flex-start; color: var(--muted); font-size: 13px; text-decoration: none; }\n.back:hover { color: var(--text); }\n</style>',
+    )
+  writeFileSync(resolve(target, 'index.html'), html)
+  copyFileSync(resolve(root, 'demo/favicon.svg'), resolve(target, 'favicon.svg'))
+}
+
 async function run(): Promise<void> {
   copyIcon()
-  const env = readEnv()
+  const target = publishTarget()
+
+  // **공개용에는 .env 를 읽지 않는다.** 핫스팟 비밀번호가 묶음에 박혀
+  // 그대로 공개된다. 비어도 데모는 그대로 돈다.
+  const env = target === null ? readEnv() : {}
 
   /**
    * `process.env` 는 브라우저에 없다.
@@ -83,7 +128,8 @@ async function run(): Promise<void> {
 
   const result = await build({
     entryPoints: [resolve(root, 'demo/src/main.ts')],
-    outfile: resolve(root, 'demo/app.js'),
+    outfile: target === null ? resolve(root, 'demo/app.js') : resolve(target, 'app.js'),
+    minify: target !== null,
     bundle: true,
     format: 'esm',
     platform: 'browser',
@@ -94,6 +140,11 @@ async function run(): Promise<void> {
   })
 
   if (result.errors.length > 0) process.exit(1)
+
+  if (target !== null) {
+    mkdirSync(target, { recursive: true })
+    publishPage(target)
+  }
 }
 
 void run()

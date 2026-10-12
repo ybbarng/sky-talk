@@ -384,6 +384,7 @@ const ICONS: Record<string, string> = {
   checkDouble: '<path d="m2 12.5 4 4L13.5 8"/><path d="m10 16.5 1.5 1.5L21 8"/>',
   wifi: '<path d="M2 8.5a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19" r=".8"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>',
+  bluetooth: '<path d="m7 7 10 10-5 5V2l5 5L7 17"/>',
   plane: '<path d="M21 15.5 13.5 12V5.2a1.5 1.5 0 0 0-3 0V12L3 15.5v2l7.5-2.2v4.1L8 21v1.2l4-1 4 1V21l-2.5-1.6v-4.1l7.5 2.2v-2Z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>',
 }
