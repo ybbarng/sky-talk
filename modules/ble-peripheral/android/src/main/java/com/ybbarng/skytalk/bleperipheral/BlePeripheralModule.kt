@@ -1,4 +1,4 @@
-package com.ybbarng.skywalkie.bleperipheral
+package com.ybbarng.skytalk.bleperipheral
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice

@@ -27,7 +27,7 @@ const kotlinService = read(
   'java',
   'com',
   'ybbarng',
-  'skywalkie',
+  'skytalk',
   'stayalive',
   'StayAliveService.kt',
 )
@@ -83,7 +83,7 @@ describe('모듈 설정', () => {
         'java',
         'com',
         'ybbarng',
-        'skywalkie',
+        'skytalk',
         'stayalive',
         'StayAliveModule.kt',
       ),

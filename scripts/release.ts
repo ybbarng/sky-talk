@@ -60,7 +60,7 @@ function run(): void {
     `v${version}`,
     apk,
     '--title',
-    `Skywalkie ${version}`,
+    `SkyTalk ${version}`,
     '--notes',
     releaseNotes(version as string),
   ])

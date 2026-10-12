@@ -186,7 +186,7 @@ pnpm peer --guest --to <주소>  맥이 거는 쪽
 ### 손으로 확인할 때 알아둘 것
 
 - 안드로이드 단추는 `adb shell input tap` 이 안 먹는 경우가 있다. `input swipe X Y X+2 Y+2 150` 으로 2픽셀 움직여 누른다. 화면 글은 `uiautomator dump` 로 읽는다.
-- 안드로이드가 알리는지는 `adb logcat` 에서 `BLE_GAP ... ADV_SET_START :: appName: com.ybbarng.skywalkie` 로 본다. 우리 앱 프로세스의 `BluetoothGattServer` 줄에서 상대가 붙었는지도 보인다.
+- 안드로이드가 알리는지는 `adb logcat` 에서 `BLE_GAP ... ADV_SET_START :: appName: com.ybbarng.skytalk` 로 본다. 우리 앱 프로세스의 `BluetoothGattServer` 줄에서 상대가 붙었는지도 보인다.
 - 아이폰 로그는 도구가 없어 못 본다. 아이폰 쪽 버그는 코드를 읽어 잡았다.
 - 아이폰이 잠겨 있으면 앱을 못 켠다(`BSErrorCodeDescription = Locked`). 잠금을 풀고 한다.
 - 아이폰은 시작 화면을 캐시해서 덮어 설치한 뒤에도 옛 그림이 뜰 수 있다. 재부팅하면 사라진다.

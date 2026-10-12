@@ -6,9 +6,9 @@ import type { ExpoConfig } from 'expo/config'
  * (docs/08-build-release.md 참고)
  */
 const config: ExpoConfig = {
-  name: 'Skywalkie',
-  slug: 'skywalkie',
-  scheme: 'skywalkie',
+  name: 'SkyTalk',
+  slug: 'sky-talk',
+  scheme: 'skytalk',
   version: '0.1.0',
   orientation: 'default',
   userInterfaceStyle: 'automatic',
@@ -19,7 +19,7 @@ const config: ExpoConfig = {
   backgroundColor: '#0B1020',
 
   ios: {
-    bundleIdentifier: 'com.ybbarng.skywalkie',
+    bundleIdentifier: 'com.ybbarng.skytalk',
     supportsTablet: false,
     infoPlist: {
       // 소리가 흐르는 동안에는 앱이 뒤로 가도 살아 있어야 한다.
@@ -33,12 +33,12 @@ const config: ExpoConfig = {
       NSPhotoLibraryUsageDescription: '사진을 골라 보내려면 앨범이 필요해요.',
       NSLocalNetworkUsageDescription: '같은 Wi-Fi에 있는 상대 폰을 찾으려면 필요해요.',
       // 기기를 찾기 위해 사설망에 알리는 서비스 이름
-      NSBonjourServices: ['_skywalkie._tcp'],
+      NSBonjourServices: ['_skytalk._tcp'],
     },
   },
 
   android: {
-    package: 'com.ybbarng.skywalkie',
+    package: 'com.ybbarng.skytalk',
     adaptiveIcon: {
       foregroundImage: './assets/icon/generated/icon-foreground.png',
       backgroundImage: './assets/icon/generated/icon-background.png',

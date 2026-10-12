@@ -3,11 +3,11 @@ plugins {
   id 'expo-module-gradle-plugin'
 }
 
-group = 'com.ybbarng.skywalkie'
+group = 'com.ybbarng.skytalk'
 version = '1.0.0'
 
 android {
-  namespace 'com.ybbarng.skywalkie.stayalive'
+  namespace 'com.ybbarng.skytalk.stayalive'
 
   // expo-module-gradle-plugin 이 이 둘을 요구한다. 없으면 설정 단계에서 멎는다.
   defaultConfig {

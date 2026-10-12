@@ -18,7 +18,7 @@
 pnpm create expo-app . --template blank-typescript
 ```
 
-`app.config.ts`에 이름(Skywalkie), 식별자(`com.ybbarng.skywalkie`), 권한, 배경 모드를 적는다.
+`app.config.ts`에 이름(SkyTalk), 식별자(`com.ybbarng.skytalk`. 2026-10-12 까지는 Skywalkie, `com.ybbarng.skywalkie`), 권한, 배경 모드를 적는다.
 
 ### 폴더 만들기
 

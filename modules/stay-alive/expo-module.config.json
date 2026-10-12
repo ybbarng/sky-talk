@@ -1,6 +1,6 @@
 {
   "platforms": ["android"],
   "android": {
-    "modules": ["com.ybbarng.skywalkie.stayalive.StayAliveModule"]
+    "modules": ["com.ybbarng.skytalk.stayalive.StayAliveModule"]
   }
 }

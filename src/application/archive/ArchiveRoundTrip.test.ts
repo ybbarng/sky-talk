@@ -175,6 +175,18 @@ describe('꺼냈다 도로 넣기', () => {
     if (!result.ok) return
     expect(result.value.inserted).toBe(0)
   })
+
+  it('예전 이름(Skywalkie) 때 꺼낸 파일도 되돌린다', async () => {
+    // 2026-10-12 에 이름을 바꿨다. 그 전에 꺼낸 파일은 표시가 다르다
+    await fill(4)
+    const json = (await exported()).replace('"skytalk-archive"', '"skywalkie-archive"')
+
+    const result = await importer.fromJson(json)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.inserted).toBe(4)
+  })
 })
 
 describe('만 건짜리 대화', () => {
@@ -420,7 +432,7 @@ describe('망가진 파일은', () => {
 
     expect(result.ok).toBe(false)
     if (result.ok) return
-    expect(result.error.detail).toContain('스카이워키')
+    expect(result.error.detail).toContain('SkyTalk')
   })
 
   it('JSON 이 아니면 거절한다', async () => {

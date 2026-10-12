@@ -188,7 +188,7 @@ export class SilentKeepAlive {
 
     try {
       const FileSystem = require('expo-file-system/legacy')
-      const path = `${FileSystem.cacheDirectory}skywalkie-silence.wav`
+      const path = `${FileSystem.cacheDirectory}skytalk-silence.wav`
 
       const info = await FileSystem.getInfoAsync(path)
       if (info?.exists !== true) {

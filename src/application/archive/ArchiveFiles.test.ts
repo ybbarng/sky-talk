@@ -19,7 +19,7 @@ const DAY = 24 * 60 * 60 * 1000
 describe('파일 이름', () => {
   it('언제 꺼낸 것인지 이름에 담는다', () => {
     // 여러 번 꺼내면 쌓이는데 전부 "대화.json" 이면 어느 게 최신인지 모른다
-    expect(archiveFileName('json', AT)).toBe('대화-20260918-1405.skywalkie.json')
+    expect(archiveFileName('json', AT)).toBe('대화-20260918-1405.skytalk.json')
     expect(archiveFileName('html', AT)).toBe('대화-20260918-1405.html')
     expect(archiveFileName('text', AT)).toBe('대화-20260918-1405.txt')
   })
@@ -60,11 +60,11 @@ describe('자동 보관', () => {
 
   it('최근 세 개만 남긴다', () => {
     const names = [
-      '자동보관-20260915-0900.skywalkie.json',
-      '자동보관-20260916-0900.skywalkie.json',
-      '자동보관-20260917-0900.skywalkie.json',
-      '자동보관-20260918-0900.skywalkie.json',
-      '자동보관-20260919-0900.skywalkie.json',
+      '자동보관-20260915-0900.skytalk.json',
+      '자동보관-20260916-0900.skytalk.json',
+      '자동보관-20260917-0900.skytalk.json',
+      '자동보관-20260918-0900.skytalk.json',
+      '자동보관-20260919-0900.skytalk.json',
     ]
 
     expect(backupsToRemove(names)).toEqual([names[0], names[1]])
@@ -72,8 +72,8 @@ describe('자동 보관', () => {
 
   it('세 개 이하면 안 지운다', () => {
     const names = [
-      '자동보관-20260917-0900.skywalkie.json',
-      '자동보관-20260918-0900.skywalkie.json',
+      '자동보관-20260917-0900.skytalk.json',
+      '자동보관-20260918-0900.skytalk.json',
     ]
 
     expect(backupsToRemove(names)).toEqual([])
@@ -82,11 +82,11 @@ describe('자동 보관', () => {
   it('손으로 꺼낸 것은 절대 안 지운다', () => {
     // **사람이 일부러 만든 것이다.** 앱이 마음대로 지우면 안 된다.
     const names = [
-      '대화-20260915-0900.skywalkie.json',
-      '대화-20260916-0900.skywalkie.json',
-      '대화-20260917-0900.skywalkie.json',
-      '대화-20260918-0900.skywalkie.json',
-      '자동보관-20260919-0900.skywalkie.json',
+      '대화-20260915-0900.skytalk.json',
+      '대화-20260916-0900.skytalk.json',
+      '대화-20260917-0900.skytalk.json',
+      '대화-20260918-0900.skytalk.json',
+      '자동보관-20260919-0900.skytalk.json',
     ]
 
     expect(backupsToRemove(names)).toEqual([])

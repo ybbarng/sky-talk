@@ -1,7 +1,7 @@
 # SkyTalk 작업 지침
 
 비행기에서 두 사람이 인터넷 없이 대화하는 앱. React Native + Expo.
-홈 화면 이름은 SkyTalk, 패키지·저장소 이름은 `skywalkie` 그대로다(바꾸면 새 앱이 되어 대화가 사라진다).
+홈 화면 이름은 SkyTalk, 저장소는 `sky-talk`, 앱 식별자는 `com.ybbarng.skytalk` 다. 2026-10-12 에 `skywalkie` 에서 바꿨다. **식별자를 또 바꾸면 폰에서는 새 앱이 되어 대화가 사라진다.**
 
 ## 먼저 읽을 것
 

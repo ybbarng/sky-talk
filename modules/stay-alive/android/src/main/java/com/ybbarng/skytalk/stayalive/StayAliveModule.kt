@@ -1,4 +1,4 @@
-package com.ybbarng.skywalkie.stayalive
+package com.ybbarng.skytalk.stayalive
 
 import android.content.Context
 import android.content.Intent

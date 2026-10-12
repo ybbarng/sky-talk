@@ -377,7 +377,7 @@ LIMIT 50;
 
 | 형식 | 확장자 | 무엇에 쓰나 | 되돌릴 수 있나 |
 |---|---|---|---|
-| 보관 파일 | `.skywalkie.json` | 다른 기기로 옮기거나 재설치 후 되돌리기 | **가능** |
+| 보관 파일 | `.skytalk.json` | 다른 기기로 옮기거나 재설치 후 되돌리기 | **가능** |
 | 읽는 문서 | `.html` | 앱 없이 그냥 열어보기. 낙서까지 보인다 | 불가 |
 | 글자만 | `.txt` | 어디서든 열리는 가장 단순한 형태 | 불가 |
 
@@ -387,7 +387,7 @@ LIMIT 50;
 
 ```jsonc
 {
-  "format": "skywalkie-archive",
+  "format": "skytalk-archive",   // 예전 이름 때의 "skywalkie-archive" 도 읽는다
   "version": 1,
   "exportedAt": 1758000000000,
   "people": [                       // 두 사람 다 담는다

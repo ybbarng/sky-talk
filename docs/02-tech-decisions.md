@@ -278,6 +278,10 @@ Tailwind 대신 **직접 정의한 토큰과 스타일 함수**를 쓴다. 그�
 `name`·`slug`·번들·패키지는 `skywalkie` 그대로고, 설정 플러그인
 `plugins/withDisplayName.js` 가 표시 이름만 바꾼다.
 
+> 2026-10-12 에 바꿨다. `name`·`slug`·번들·패키지도 SkyTalk(`sky-talk`,
+> `com.ybbarng.skytalk`)에 맞췄다. 그때까지 쌓인 대화가 사실상 없어서 새 앱이 되어도
+> 잃을 것이 없었다. 예전 이름으로 꺼낸 보관 파일(`skywalkie-archive`)은 그대로 읽는다.
+
 ### 왜
 
 `name` 을 바꾸면 iOS 프로젝트 폴더와 안드로이드 패키지까지 따라 바뀌어 두 폰에 새 앱으로

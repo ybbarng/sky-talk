@@ -12,6 +12,7 @@ import {
   type ArchivedMessage,
   type ArchivedPerson,
   type ArchiveIntegrity,
+  LEGACY_ARCHIVE_FORMATS,
 } from './ArchiveFormat'
 import { compareIntegrity, computeIntegrity } from './ArchiveIntegrity'
 
@@ -149,9 +150,10 @@ export function parseArchive(raw: string): Result<ParsedArchive, DomainError> {
 
   const file = value as Record<string, unknown>
 
-  if (file.format !== ARCHIVE_FORMAT) {
+  const format = typeof file.format === 'string' ? file.format : ''
+  if (format !== ARCHIVE_FORMAT && !LEGACY_ARCHIVE_FORMATS.includes(format)) {
     return err(
-      domainError('invalid-value', '스카이워키가 만든 대화 파일이 아니에요', 'archive'),
+      domainError('invalid-value', 'SkyTalk 에서 만든 대화 파일이 아니에요', 'archive'),
     )
   }
 

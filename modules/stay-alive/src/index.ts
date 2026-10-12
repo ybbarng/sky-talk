@@ -22,7 +22,7 @@ import { AppRegistry, Platform } from 'react-native'
  */
 
 /** 네이티브 서비스가 찾는 이름. `StayAliveService.TASK_NAME` 과 같아야 한다 */
-const TASK_NAME = 'SkywalkieStayAlive'
+const TASK_NAME = 'SkyTalkStayAlive'
 
 export interface StayAliveModule {
   isSupported(): boolean

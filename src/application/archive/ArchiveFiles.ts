@@ -13,7 +13,7 @@ import type { Clock } from '@/domain/shared/Clock'
 export type ArchiveKind = 'json' | 'html' | 'text'
 
 const extensions: Record<ArchiveKind, string> = {
-  json: '.skywalkie.json',
+  json: '.skytalk.json',
   html: '.html',
   text: '.txt',
 }
@@ -24,7 +24,7 @@ export function archiveFileName(kind: ArchiveKind, at: Date): string {
 
 /** 자동으로 남겨두는 것. 손으로 꺼낸 것과 이름으로 구별한다 */
 export function autoBackupFileName(at: Date): string {
-  return `자동보관-${stamp(at)}.skywalkie.json`
+  return `자동보관-${stamp(at)}.skytalk.json`
 }
 
 export function isAutoBackup(name: string): boolean {

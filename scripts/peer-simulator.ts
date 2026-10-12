@@ -250,7 +250,7 @@ function main(): void {
   const options = parseArgs()
 
   console.log('─'.repeat(52))
-  console.log('  Skywalkie 상대 흉내내기')
+  console.log('  SkyTalk 상대 흉내내기')
   console.log('─'.repeat(52))
   console.log(
     `  역할      ${options.role === 'host' ? '받는 쪽 (핫스팟을 연 쪽)' : '거는 쪽'}`,

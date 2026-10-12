@@ -18,7 +18,14 @@ import type { MessageContent } from '@/domain/message/MessageContent'
 export const ARCHIVE_VERSION = 1
 
 /** 다른 앱이 만든 JSON 을 거르는 표시 (05-messaging-spec.md 6.2) */
-export const ARCHIVE_FORMAT = 'skywalkie-archive'
+export const ARCHIVE_FORMAT = 'skytalk-archive'
+
+/**
+ * 예전 이름(Skywalkie) 때 만든 파일의 표시. 2026-10-12 에 이름을 바꿨다.
+ *
+ * **읽을 때만 받아준다.** 그때 꺼낸 파일도 되돌릴 수 있어야 한다.
+ */
+export const LEGACY_ARCHIVE_FORMATS: readonly string[] = ['skywalkie-archive']
 
 export interface ArchiveFile {
   readonly format: typeof ARCHIVE_FORMAT

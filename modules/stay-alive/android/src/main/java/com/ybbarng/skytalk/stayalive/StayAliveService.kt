@@ -1,4 +1,4 @@
-package com.ybbarng.skywalkie.stayalive
+package com.ybbarng.skytalk.stayalive
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -118,7 +118,7 @@ class StayAliveService : HeadlessJsTaskService() {
 
   companion object {
     /** JS 쪽에서 `AppRegistry.registerHeadlessTask` 로 같은 이름을 등록한다 */
-    const val TASK_NAME = "SkywalkieStayAlive"
+    const val TASK_NAME = "SkyTalkStayAlive"
 
     private const val CHANNEL_ID = "stay-alive"
     private const val NOTICE_ID = 4823

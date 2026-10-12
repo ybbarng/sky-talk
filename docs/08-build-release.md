@@ -100,8 +100,8 @@ CI=1 pnpm expo prebuild        # --clean 없이. 바뀐 것만 덮어쓴다
 ```
 
 `CI=1` 은 "지울까요?" 같은 물음을 안 띄우게 한다. 물음이 뜨면 자동화한 명령이 거기서
-멈춰 있다. `ios/` 안 프로젝트 이름은 `Skywalkie` 그대로 남는다. 아래 명령들이 그 이름을
-쓴다.
+멈춰 있다. `ios/` 안 프로젝트 이름은 `app.config.ts` 의 `name`(`SkyTalk`)을 따른다. 아래 명령들이 그 이름을
+쓴다. 이름을 바꾼 뒤에는 옛 이름의 `ios/`·`android/` 가 남지 않게 `pnpm expo prebuild --clean` 으로 한 번 새로 만든다.
 
 ### 2.2 아이콘이나 이름을 바꿨을 때
 
@@ -115,8 +115,8 @@ CI=1 pnpm expo prebuild        # PNG → android/ mipmap, ios/ Images.xcassets, 
 ```
 
 홈 화면 이름은 `plugins/withDisplayName.js` 가 정한다(`CFBundleDisplayName`, `app_name`).
-2026-09-19 에 Skywalkie 에서 **SkyTalk** 로 바꿨다. **패키지·번들 이름(`com.ybbarng.skywalkie`)은
-안 바꾼다.** 바꾸면 다른 앱으로 취급돼 새로 깔리고 대화가 날아간다.
+2026-09-19 에 Skywalkie 에서 **SkyTalk** 로 바꿨다. 패키지·번들 이름도 2026-10-12 에
+`com.ybbarng.skytalk` 로 맞췄다. **이걸 또 바꾸면 다른 앱으로 취급돼 새로 깔리고 대화가 날아간다.**
 
 **아이폰은 스플래시(실행 화면)를 저장해 둔다.** 아이콘과 스플래시를 바꿔 설치해도 앱을
 열 때 옛 그림이 뜬다. 앱을 지우면 대화가 날아가니 **아이폰을 껐다 켠다.** 그러면
@@ -175,7 +175,7 @@ GitHub 릴리스에서 APK를 내려받아 누르면 끝이다. "출처를 알 �
 ### 안드로이드에서 뭐가 안 될 때 보는 곳
 
 ```bash
-adb logcat | grep -E "BLE_GAP.*skywalkie|ReactNativeJS"   # 블루투스 광고와 JS 로그
+adb logcat | grep -E "BLE_GAP.*skytalk|ReactNativeJS"   # 블루투스 광고와 JS 로그
 adb shell uiautomator dump && adb pull /sdcard/window_dump.xml  # 지금 화면에 뭐가 있나
 adb shell input swipe 540 1200 542 1202 150                   # 그 자리를 누른다
 ```
@@ -218,25 +218,25 @@ adb shell input swipe 540 1200 542 1202 150                   # 그 자리를 �
    · 이 항목은 앱이 깔린 뒤에 생긴다. 그 전에 찾으면 없다
 ```
 
-4번은 이 세 줄이다. 기기 식별자 두 개는 이 아이폰 것이라 다른 폰이면 바꾼다
-(`xcrun devicectl list devices` 로 본다).
+4번은 이 세 줄이다. `<UDID>`·`<기기-ID>` 는 `xcrun devicectl list devices` 로, `<팀-ID>` 는
+Xcode 의 계정 설정(Signing & Capabilities)에서 본다. 저장소가 공개라 여기에 적지 않는다.
 
 ```bash
 # 만들기 (Release, 실기기용). 5~10분 걸린다
-xcodebuild -workspace ios/Skywalkie.xcworkspace -scheme Skywalkie \
+xcodebuild -workspace ios/SkyTalk.xcworkspace -scheme SkyTalk \
   -configuration Release -destination 'id=<UDID>' \
   -allowProvisioningUpdates DEVELOPMENT_TEAM=<팀-ID> CODE_SIGN_STYLE=Automatic build
 
 # 설치. 지우지 않고 덮어써서 대화가 남는다
 xcrun devicectl device install app --device <기기-ID> \
-  ~/Library/Developer/Xcode/DerivedData/Skywalkie-eohoetdjtkafelgwwwrcwgnsgwkm/Build/Products/Release-iphoneos/Skywalkie.app
+  ~/Library/Developer/Xcode/DerivedData/SkyTalk-<맥마다 다름>/Build/Products/Release-iphoneos/SkyTalk.app
 
 # 열기 (돌고 있으면 껐다 켠다)
 xcrun devicectl device process launch --device <기기-ID> \
-  --terminate-existing com.ybbarng.skywalkie
+  --terminate-existing com.ybbarng.skytalk
 ```
 
-`DerivedData` 밑의 폴더 이름(`Skywalkie-eoho...`)은 맥마다 다르다. 없으면
+`DerivedData` 밑의 폴더 이름(`SkyTalk-...`)은 맥마다 다르다. 없으면
 `ls ~/Library/Developer/Xcode/DerivedData/` 로 찾는다.
 
 5번을 빠뜨리면 아이콘은 생기는데 눌러도 안 열린다.

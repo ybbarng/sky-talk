@@ -4,6 +4,6 @@
     "modules": ["BlePeripheralModule"]
   },
   "android": {
-    "modules": ["com.ybbarng.skywalkie.bleperipheral.BlePeripheralModule"]
+    "modules": ["com.ybbarng.skytalk.bleperipheral.BlePeripheralModule"]
   }
 }

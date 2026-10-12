@@ -2,7 +2,7 @@
 
 > 상태: 확정 · 최종 수정 2026-09-19 (실기기로 두 폰을 맞춘 날의 화면 기준)
 
-홈 화면에 보이는 앱 이름은 **SkyTalk** 이다. 패키지·번들 이름은 `skywalkie` 그대로다
+홈 화면에 보이는 앱 이름은 **SkyTalk** 이다. 패키지·번들 이름은 `com.ybbarng.skytalk` 다
 ([08-build-release.md](./08-build-release.md) 2.2).
 
 ## 1. 어떤 느낌으로 만드는가

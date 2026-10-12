@@ -63,7 +63,7 @@ export async function createContainer(
 ): Promise<Result<Container, DomainError>> {
   if (current !== null) return ok(current)
 
-  const raw = await openDatabaseAsync('skywalkie.db').catch(() => null)
+  const raw = await openDatabaseAsync('skytalk.db').catch(() => null)
   if (raw === null) {
     return err({
       code: 'not-found',

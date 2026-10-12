@@ -29,7 +29,7 @@ const kotlin = readFileSync(
     'java',
     'com',
     'ybbarng',
-    'skywalkie',
+    'skytalk',
     'bleperipheral',
     'BlePeripheralModule.kt',
   ),
@@ -65,11 +65,11 @@ describe('두 폰에 같은 이름으로 붙는다', () => {
 
   it('안드로이드 클래스 이름이 실제 코드와 맞는다', () => {
     const declared: string[] = config.android.modules
-    expect(declared).toContain('com.ybbarng.skywalkie.bleperipheral.BlePeripheralModule')
+    expect(declared).toContain('com.ybbarng.skytalk.bleperipheral.BlePeripheralModule')
 
     // 패키지와 클래스가 선언과 같은지 본다. 한 글자만 달라도
     // 자동 연결이 조용히 건너뛴다.
-    expect(kotlin).toContain('package com.ybbarng.skywalkie.bleperipheral')
+    expect(kotlin).toContain('package com.ybbarng.skytalk.bleperipheral')
     expect(kotlin).toContain('class BlePeripheralModule')
   })
 

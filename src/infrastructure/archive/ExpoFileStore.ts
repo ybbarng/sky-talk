@@ -157,7 +157,7 @@ export class ExpoFileSharer implements FileSharer {
   async pick(): Promise<Result<string | null, DomainError>> {
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        // 우리 파일은 확장자가 .skywalkie.json 이라 기기가 종류를 모른다.
+        // 우리 파일은 확장자가 .skytalk.json 이라 기기가 종류를 모른다.
         // 전부 보여주고 형식 검사는 우리가 한다.
         type: '*/*',
         copyToCacheDirectory: true,

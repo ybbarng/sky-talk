@@ -173,11 +173,11 @@ describe('꺼내둔 파일을 읽을 때', () => {
 
   it('알맹이가 이상해도 안 터진다', () => {
     const shapes = [
-      '{"format":"skywalkie-archive","version":1,"messages":null}',
-      '{"format":"skywalkie-archive","version":1,"messages":[],"integrity":null}',
-      '{"format":"skywalkie-archive","version":1,"messages":[1,2,3],"integrity":{}}',
-      '{"format":"skywalkie-archive","version":-1,"messages":[],"integrity":{}}',
-      '{"format":"skywalkie-archive","version":1e999,"messages":[],"integrity":{}}',
+      '{"format":"skytalk-archive","version":1,"messages":null}',
+      '{"format":"skytalk-archive","version":1,"messages":[],"integrity":null}',
+      '{"format":"skytalk-archive","version":1,"messages":[1,2,3],"integrity":{}}',
+      '{"format":"skytalk-archive","version":-1,"messages":[],"integrity":{}}',
+      '{"format":"skytalk-archive","version":1e999,"messages":[],"integrity":{}}',
       '[]',
       '"글"',
       '123',

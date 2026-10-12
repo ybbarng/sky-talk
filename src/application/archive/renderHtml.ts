@@ -73,7 +73,7 @@ svg { display: block; background: var(--bg); border-radius: 12px; }
 </style>
 <main>
 <h1>${names}</h1>
-<p class="sub">스카이워키에서 꺼낸 대화</p>
+<p class="sub">SkyTalk 에서 꺼낸 대화</p>
 `
 }
 
