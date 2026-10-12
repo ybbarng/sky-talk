@@ -1,0 +1,53 @@
+# 브라우저 데모를 GitHub Pages 에 올린다 → https://gh.byb.kr/sky-talk/
+#
+# 데모는 진짜 앱 코드(src/)를 묶은 것이라 앱 코드가 바뀌어도 다시 올린다.
+# 검사(pnpm verify)가 깨지면 올리지 않는다.
+# 공개용 묶음은 .env 를 읽지 않는다(demo/build.ts). 여기에는 .env 도 없다.
+name: 데모 올리기
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify
+
+      - run: pnpm demo:publish site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

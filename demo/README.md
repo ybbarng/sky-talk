@@ -68,15 +68,16 @@ pnpm demo:publish <폴더>     # 공개용으로 묶어 그 폴더에 내보낸�
 이모티콘은 **길게 누르면 무슨 말인지** 위에 뜬다. Wi-Fi 로 이어져 있을
 때만 `typing` 이 건너간다. 앱이 좁은 블루투스에서는 아끼기 때문이다.
 
-## dev.byb.kr 에 올리기
+## 공개 페이지
 
-```bash
-pnpm demo:publish ~/personal/projects/dev.byb.kr/sky-talk
-```
+https://gh.byb.kr/sky-talk/ 에 있다. `main` 에 올라오면
+`.github/workflows/demo-pages.yml` 이 `pnpm verify` 를 돌리고
+`pnpm demo:publish site` 로 묶어 GitHub Pages 에 올린다. dev.byb.kr 허브는
+여기와 저장소를 가리키기만 한다. **고칠 곳은 이 저장소 하나다.**
 
 **공개용에는 `.env` 를 읽지 않는다.** 핫스팟 비밀번호가 묶음에 박혀
-그대로 공개되기 때문이다. 압축하고, 맨 위에 "직접 고치지 말 것" 과 허브로
-돌아가는 링크를 단다.
+그대로 공개되기 때문이다. 압축하고, 맨 위에 "직접 고치지 말 것" 과 허브·
+저장소로 가는 링크를 단다.
 
 ## 폰 두 대가 달라 보이는 것
 

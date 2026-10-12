@@ -65,3 +65,6 @@ app.json
 
 # 에이전트 작업 트리
 .claude/worktrees/
+
+# 데모 공개용 묶음 (GitHub Actions 가 pnpm demo:publish site 로 만든다)
+/site

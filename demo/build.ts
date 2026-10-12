@@ -68,7 +68,8 @@ function readEnv(): Record<string, string> {
 /**
  * 공개용으로 내보낼 곳. `--publish <폴더>` 로 받는다.
  *
- * dev.byb.kr 같은 공개 사이트에 올릴 때 쓴다.
+ * GitHub Pages(https://gh.byb.kr/sky-talk/)에 올릴 때 쓴다.
+ * `.github/workflows/demo-pages.yml` 이 main 에 올라올 때마다 부른다.
  */
 function publishTarget(): string | null {
   const at = process.argv.indexOf('--publish')
@@ -85,21 +86,22 @@ function publishTarget(): string | null {
  * 공개용 페이지를 만든다.
  *
  * 묶은 결과물이라 거기서 고치면 다음에 덮어써진다. 그래서 맨 위에 적어두고,
- * 돌아갈 곳(허브) 링크를 단다.
+ * 돌아갈 곳(허브)과 코드 링크를 단다. 올라가는 곳이 허브와 다른 도메인이라
+ * 주소를 통째로 적는다.
  */
 function publishPage(target: string): void {
   const html = readFileSync(resolve(root, 'demo/index.html'), 'utf8')
     .replace(
       '<!doctype html>',
-      '<!doctype html>\n<!-- 이 폴더는 sky-talk 저장소 demo/ 에서 `pnpm demo:publish` 로 묶은 결과물입니다. 여기서 직접 고치지 말고 소스를 고쳐 다시 묶으세요. -->',
+      '<!doctype html>\n<!-- 이 페이지는 sky-talk 저장소 demo/ 에서 `pnpm demo:publish` 로 묶은 결과물입니다. 여기서 직접 고치지 말고 소스를 고쳐 다시 묶으세요. -->',
     )
     .replace(
       '<h1>',
-      '<a class="back" href="../">← dev.byb.kr</a>\n<h1>',
+      '<nav class="links"><a href="https://dev.byb.kr/">← dev.byb.kr</a><a href="https://github.com/ybbarng/sky-talk">GitHub ↗</a></nav>\n<h1>',
     )
     .replace(
       '</style>',
-      '.back { align-self: flex-start; color: var(--muted); font-size: 13px; text-decoration: none; }\n.back:hover { color: var(--text); }\n</style>',
+      '.links { align-self: stretch; display: flex; justify-content: space-between; max-width: 1100px; width: 100%; margin: 0 auto; }\n.links a { color: var(--muted); font-size: 13px; text-decoration: none; }\n.links a:hover { color: var(--text); }\n</style>',
     )
   writeFileSync(resolve(target, 'index.html'), html)
   copyFileSync(resolve(root, 'demo/favicon.svg'), resolve(target, 'favicon.svg'))
