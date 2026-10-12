@@ -32,25 +32,34 @@ describe('찾는 순서', () => {
     expect(steps.map(s => s.method)).not.toContain('gateway')
   })
 
-  it('게이트웨이 다음은 외치기, 그다음이 훑어보기다', () => {
+  it('게이트웨이 다음이 훑어보기다. 외치기는 하지 않는다', () => {
+    // 외쳐도 답하는 쪽이 없어 매번 10초를 버렸다
     const steps = planDiscovery(ip('192.168.43.20'))
 
-    expect(steps.map(s => s.method)).toEqual(['gateway', 'broadcast', 'scan'])
+    expect(steps.map(s => s.method)).toEqual(['gateway', 'scan'])
   })
 
-  it('외칠 때는 대역 전체와 모두에게 두 곳으로 보낸다', () => {
-    // 기기에 따라 둘 중 하나만 먹는다
-    const steps = planDiscovery(ip('192.168.43.20'))
-    const broadcast = steps.find(s => s.method === 'broadcast')
+  it('지난번에 붙었던 주소가 있으면 거기부터 걸어본다', () => {
+    // 끊겼다 다시 붙을 때 넓은 기내 Wi-Fi 를 처음부터 훑지 않는다
+    const steps = planDiscovery(ip('10.0.5.20'), '10.0.5.31')
 
-    expect(broadcast?.targets).toEqual(['192.168.43.255', '255.255.255.255'])
+    expect(steps.map(s => s.method)).toEqual(['last-known', 'gateway', 'scan'])
+    expect(steps[0]?.targets).toEqual(['10.0.5.31'])
   })
 
-  it('훑어보기는 대역 전체를 본다', () => {
+  it('지난번 주소가 지금 내 주소면 건너뛴다', () => {
+    // 망을 옮겨 내가 그 주소를 받았을 수 있다
+    const steps = planDiscovery(ip('10.0.5.31'), '10.0.5.31')
+
+    expect(steps.map(s => s.method)).not.toContain('last-known')
+  })
+
+  it('훑어보기는 가까운 곳부터 /16 까지 본다', () => {
     const steps = planDiscovery(ip('192.168.43.20'))
     const scan = steps.find(s => s.method === 'scan')
 
-    expect(scan?.targets).toHaveLength(253)
+    expect(scan?.targets[0]).toBe('192.168.43.19')
+    expect(scan?.targets).toHaveLength(256 * 256 - 3)
   })
 
   it('게이트웨이를 가장 짧게 기다린다', () => {
@@ -97,12 +106,13 @@ describe('동시에 걸어보기', () => {
 })
 
 describe('얼마나 걸릴지 어림하기', () => {
-  it('대역 전체를 훑는 데 3초쯤 걸린다', () => {
-    // 화면에 "몇 초쯤 걸려요"를 보여주는 데 쓴다
-    const millis = estimateScanMillis(253)
+  it('핫스팟 대역은 2초 안에 훑는다', () => {
+    // 가까운 곳부터 보므로 핫스팟 254개는 앞쪽 500개 안에 다 들어 있다
+    expect(estimateScanMillis(500)).toBeLessThan(2500)
+  })
 
-    expect(millis).toBeGreaterThan(2000)
-    expect(millis).toBeLessThan(4000)
+  it('가장 넓게 잡은 기내 Wi-Fi 도 6분 안에 끝까지 본다', () => {
+    expect(estimateScanMillis(256 * 256 - 3)).toBeLessThan(6 * 60 * 1000)
   })
 
   it('한 번에 더 많이 걸수록 빨라진다', () => {

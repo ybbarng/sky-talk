@@ -79,25 +79,35 @@ export function isGatewayItself(ip: Ipv4): boolean {
   return ip.octets[3] === 1
 }
 
-/** 사설망 전체에 대고 외칠 때 쓰는 주소 */
-export function broadcastAddress(ip: Ipv4): Ipv4 {
-  const [a, b, c] = ip.octets
-  return { octets: [a, b, c, 255], text: `${a}.${b}.${c}.255` }
-}
-
 /**
- * 훑어볼 주소들.
+ * 훑어볼 주소들. **내 주소에서 가까운 것부터** 늘어놓는다.
  *
- * 자기 자신과 브로드캐스트 주소는 뺀다. 게이트웨이는 이미 먼저 걸어봤으므로
- * 여기서도 뺄 수 있지만, 그 시도가 실패했을 수도 있어 남겨둔다.
+ * 핫스팟은 254개뿐이지만 기내 Wi-Fi 는 훨씬 넓을 수 있다. 망의 크기는 앱이
+ * 알 길이 없어서 앞 두 자리가 같은 곳(/16)까지 넉넉히 잡는다. 대신 같은 때
+ * 붙은 두 폰은 대개 비슷한 주소를 받으므로 가까운 곳부터 보면 금방 찾는다.
+ * (docs/04-transport-spec.md 1.2, 2.3)
+ *
+ * 자기 자신과 /16 의 맨 앞(.0.0)·맨 끝(.255.255)은 뺀다. 게이트웨이는 이미
+ * 먼저 걸어봤지만 그 시도가 실패했을 수도 있어 남겨둔다.
  */
 export function scanTargets(ip: Ipv4): string[] {
-  const [a, b, c, self] = ip.octets
+  const [a, b, c, d] = ip.octets
+  const self = c * 256 + d
+  const first = 1
+  const last = 256 * 256 - 2
   const targets: string[] = []
 
-  for (let host = 1; host <= 254; host += 1) {
-    if (host === self) continue
-    targets.push(`${a}.${b}.${c}.${host}`)
+  const push = (index: number) => {
+    targets.push(`${a}.${b}.${Math.floor(index / 256)}.${index % 256}`)
+  }
+
+  for (
+    let distance = 1;
+    self - distance >= first || self + distance <= last;
+    distance += 1
+  ) {
+    if (self - distance >= first) push(self - distance)
+    if (self + distance <= last) push(self + distance)
   }
 
   return targets

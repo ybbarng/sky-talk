@@ -1,11 +1,5 @@
 import type { DiscoveryMethod } from '@/application/ports/PeerDiscovery'
-import {
-  broadcastAddress,
-  guessGateway,
-  type Ipv4,
-  isGatewayItself,
-  scanTargets,
-} from './NetworkAddress'
+import { guessGateway, type Ipv4, isGatewayItself, scanTargets } from './NetworkAddress'
 
 /**
  * 상대를 어떤 순서로 찾을지 정한다.
@@ -18,23 +12,20 @@ import {
 
 /** 쓰는 번호들 */
 export const ports = {
+  /** 비워 둔다. 예전에 소리쳐 부르기(UDP 브로드캐스트)에 썼다 */
   discovery: 51703,
   message: 51704,
   web: 51705,
 } as const
 
 /** 한 번에 몇 개씩 동시에 걸어볼까 */
-export const SCAN_BATCH_SIZE = 32
+export const SCAN_BATCH_SIZE = 64
 
 /** 훑어볼 때 한 주소를 얼마나 기다릴까 */
 export const SCAN_TIMEOUT_MS = 300
 
-/** 게이트웨이에 바로 걸 때 기다리는 시간. 대개 1초 안에 끝난다 */
+/** 게이트웨이나 지난번 주소에 바로 걸 때 기다리는 시간. 대개 1초 안에 끝난다 */
 export const GATEWAY_TIMEOUT_MS = 1500
-
-/** 소리쳐 부르기를 몇 번 할까 */
-export const BROADCAST_ATTEMPTS = 10
-export const BROADCAST_INTERVAL_MS = 1000
 
 /**
  * 이만큼 지나도 못 찾으면 화면에 "잘 안 되나요" 안내를 띄운다.
@@ -53,13 +44,29 @@ export interface DiscoveryStep {
  * 내 주소를 보고 무엇을 어떤 순서로 해볼지 정한다.
  *
  * 하나라도 성공하면 나머지는 하지 않는다.
+ *
+ * 소리쳐 부르기(UDP 브로드캐스트)는 뺐다. 답하는 쪽이 없어 매번 10초를
+ * 버렸고, 아이폰은 유료 개발자 계정 권한 없이는 브로드캐스트를 못 쓴다.
  */
-export function planDiscovery(self: Ipv4): DiscoveryStep[] {
+export function planDiscovery(
+  self: Ipv4,
+  lastKnown: string | null = null,
+): DiscoveryStep[] {
   const steps: DiscoveryStep[] = []
 
-  // 1. 게이트웨이에 바로 걸기.
+  // 1. 지난번에 붙었던 주소. 같은 망에서는 주소가 잘 안 바뀐다.
+  if (lastKnown !== null && lastKnown !== self.text) {
+    steps.push({
+      method: 'last-known',
+      targets: [lastKnown],
+      timeoutMs: GATEWAY_TIMEOUT_MS,
+    })
+  }
+
+  // 2. 게이트웨이에 바로 걸기.
   //    핫스팟을 켠 쪽이 곧 게이트웨이라 대개 이걸로 끝난다.
-  //    다만 내가 게이트웨이면 나 자신에게 거는 셈이라 건너뛴다.
+  //    기내 Wi-Fi 에서는 공유기라 실패하고 넘어간다.
+  //    내가 게이트웨이면 나 자신에게 거는 셈이라 건너뛴다.
   if (!isGatewayItself(self)) {
     steps.push({
       method: 'gateway',
@@ -68,14 +75,7 @@ export function planDiscovery(self: Ipv4): DiscoveryStep[] {
     })
   }
 
-  // 2. 사설망 전체에 대고 외치기
-  steps.push({
-    method: 'broadcast',
-    targets: [broadcastAddress(self).text, '255.255.255.255'],
-    timeoutMs: BROADCAST_ATTEMPTS * BROADCAST_INTERVAL_MS,
-  })
-
-  // 3. 하나씩 훑어보기. 오래 걸리므로 마지막이다.
+  // 3. 가까운 곳부터 넓혀가며 훑어보기. 오래 걸릴 수 있어 마지막이다.
   steps.push({
     method: 'scan',
     targets: scanTargets(self),

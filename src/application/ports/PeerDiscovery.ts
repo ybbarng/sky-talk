@@ -42,9 +42,11 @@ export interface FoundPeer {
  * (docs/04-transport-spec.md 2.3)
  */
 export type DiscoveryMethod =
+  /** 지난번에 붙었던 주소에 다시 걸기 */
+  | 'last-known'
   /** 게이트웨이에 바로 걸기. 대개 1초 안에 끝난다 */
   | 'gateway'
-  /** 사설망 전체에 대고 외치기 */
+  /** 사설망 전체에 대고 외치기. 지금은 쓰지 않는다 */
   | 'broadcast'
   /** 주소를 하나씩 훑어보기 */
   | 'scan'

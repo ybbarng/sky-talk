@@ -38,6 +38,8 @@ export class WifiLink implements MessageTransport {
   /** 사용자가 껐는가. 껐으면 다시 붙지 않는다 */
   private stopped = false
   private connecting = false
+  /** 지난번에 붙었던 상대 주소. 끊기면 거기부터 걸어본다 */
+  private lastPeerAddress: string | null = null
 
   constructor(
     private readonly role: ConnectionRole,
@@ -109,13 +111,17 @@ export class WifiLink implements MessageTransport {
 
       // 받는 쪽은 찾을 필요가 없다. 그냥 기다린다.
       const address = this.role === 'host' ? null : await this.findPeer()
+      if (this.stopped) return ok(undefined)
 
       if (this.role === 'guest' && address === null) {
         this.scheduleRetry()
         return err(domainError('not-found', '상대를 찾지 못했다', 'discovery'))
       }
 
+      // **옛 것을 닫고 나서** 새로 연다. 안 닫으면 받는 쪽은 번호를 옛 문이
+      // 쥐고 있어 새 문을 못 열고, 진짜 연결이 귀를 뗀 옛 문으로 들어간다.
       this.detachInner()
+      await this.inner.disconnect()
       this.inner = new TcpMessageTransport(this.role, {
         peerAddress: address ?? undefined,
       })
@@ -127,7 +133,7 @@ export class WifiLink implements MessageTransport {
         return opened
       }
 
-      this.attempt = 0
+      if (address !== null) this.lastPeerAddress = address
       return ok(undefined)
     } finally {
       this.connecting = false
@@ -140,7 +146,7 @@ export class WifiLink implements MessageTransport {
 
     let found: string | null = null
 
-    const discovery = new WifiPeerDiscovery()
+    const discovery = new WifiPeerDiscovery(this.lastPeerAddress)
 
     const stopFound = discovery.onFound(peer => {
       found = peer.address
@@ -166,8 +172,17 @@ export class WifiLink implements MessageTransport {
       this.inner.onStateChange(state => {
         this.setState(state)
 
-        // 끊겼다. 스스로 다시 붙는다.
-        if (!state.isUsable() && state.phase !== 'idle' && !this.stopped) {
+        // 이어졌다. 걸어둔 재시도가 있으면 거둔다. 안 거두면 멀쩡한 연결을
+        // 갈아엎는다.
+        if (state.isUsable()) {
+          this.cancelRetry()
+          this.attempt = 0
+          return
+        }
+
+        // 끊겼다. 거는 쪽은 스스로 다시 찾아 붙는다.
+        // 받는 쪽은 문을 열어둔 채라 할 일이 없다. 다음 연결을 기다린다.
+        if (this.role === 'guest' && state.phase !== 'idle' && !this.stopped) {
           this.scheduleRetry()
         }
       }),

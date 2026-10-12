@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  broadcastAddress,
   guessGateway,
   isGatewayItself,
   isLoopback,
@@ -90,34 +89,57 @@ describe('게이트웨이 짐작하기', () => {
   })
 })
 
-describe('외칠 주소', () => {
-  it('같은 대역의 255 로 외친다', () => {
-    expect(broadcastAddress(ip('192.168.43.5')).text).toBe('192.168.43.255')
-  })
-})
-
 describe('훑어볼 주소들', () => {
-  it('1번부터 254번까지 본다', () => {
-    const targets = scanTargets(ip('192.168.43.5'))
+  it('내 주소에서 가까운 것부터 본다', () => {
+    // 같은 때 기내 Wi-Fi 에 붙은 두 폰은 대개 비슷한 주소를 받는다
+    const targets = scanTargets(ip('10.0.5.20'))
 
-    expect(targets).toContain('192.168.43.1')
-    expect(targets).toContain('192.168.43.254')
-    expect(targets).not.toContain('192.168.43.255')
-    expect(targets).not.toContain('192.168.43.0')
+    expect(targets.slice(0, 4)).toEqual([
+      '10.0.5.19',
+      '10.0.5.21',
+      '10.0.5.18',
+      '10.0.5.22',
+    ])
   })
 
-  it('나 자신은 빼고 본다', () => {
+  it('셋째 자리를 넘어서도 이어서 본다', () => {
+    // 기내 Wi-Fi 는 핫스팟보다 넓을 수 있다
+    const targets = scanTargets(ip('10.0.5.1'))
+
+    expect(targets.slice(0, 4)).toEqual([
+      '10.0.5.0',
+      '10.0.5.2',
+      '10.0.4.255',
+      '10.0.5.3',
+    ])
+  })
+
+  it('핫스팟 대역은 앞쪽 500개 안에 전부 들어 있다', () => {
+    const near = new Set(scanTargets(ip('192.168.43.5')).slice(0, 500))
+
+    for (let host = 1; host <= 254; host += 1) {
+      if (host === 5) continue
+      expect(near.has(`192.168.43.${host}`)).toBe(true)
+    }
+  })
+
+  it('앞 두 자리가 같은 곳(/16)까지 넓힌다', () => {
+    const targets = scanTargets(ip('172.19.128.40'))
+
+    expect(targets).toContain('172.19.0.1')
+    expect(targets).toContain('172.19.255.254')
+    expect(targets).not.toContain('172.18.255.254')
+    expect(targets).not.toContain('172.20.0.1')
+  })
+
+  it('나 자신과 /16 의 맨 앞·맨 끝은 빼고, 하나도 겹치지 않는다', () => {
     const targets = scanTargets(ip('192.168.43.5'))
 
     expect(targets).not.toContain('192.168.43.5')
-    expect(targets).toHaveLength(253)
-  })
-
-  it('내가 게이트웨이면 나를 뺀 253개를 본다', () => {
-    const targets = scanTargets(ip('192.168.43.1'))
-
-    expect(targets).not.toContain('192.168.43.1')
-    expect(targets).toHaveLength(253)
+    expect(targets).not.toContain('192.168.0.0')
+    expect(targets).not.toContain('192.168.255.255')
+    expect(targets).toHaveLength(256 * 256 - 3)
+    expect(new Set(targets).size).toBe(targets.length)
   })
 })
 
