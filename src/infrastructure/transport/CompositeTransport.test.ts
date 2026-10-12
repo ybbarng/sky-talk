@@ -274,6 +274,81 @@ describe('나중에 이어지는 길', () => {
   })
 })
 
+describe('두 길이 함께 이어져 있을 때', () => {
+  // 기내 Wi-Fi 와 블루투스가 둘 다 닿는 비행기다
+  let wifi: FakeMessageTransport
+  let ble: FakeMessageTransport
+  let composite: CompositeTransport
+
+  beforeEach(async () => {
+    wifi = new FakeMessageTransport('wifi')
+    ble = new FakeMessageTransport('ble')
+    // 블루투스로 이야기하던 중이다
+    composite = new CompositeTransport([ble, wifi])
+    await composite.connect()
+  })
+
+  it('쓰던 길이 끊기면 이미 이어진 다른 길로 곧장 옮긴다', async () => {
+    // Wi-Fi 는 진작 이어져 있어서 상태가 다시 바뀌지 않는다.
+    // 지켜보기만 해서는 옮길 때를 모른다.
+    ble.loseConnection()
+
+    expect(composite.kind).toBe('wifi')
+    expect(composite.currentState().isUsable()).toBe(true)
+
+    await composite.send(envelope('Wi-Fi 로'))
+    expect(wifi.sent).toHaveLength(1)
+  })
+
+  it('옮긴 것을 위로 알린다. 새 길로 다시 인사해야 한다', () => {
+    const links: Array<string | null> = []
+    composite.onStateChange(state => links.push(state.link))
+
+    ble.loseConnection()
+
+    expect(links.at(-1)).toBe('wifi')
+  })
+
+  it('쓰지 않는 길로 온 봉투도 받는다', () => {
+    // 상대 폰은 Wi-Fi 를 골랐을 수 있다
+    const received: Envelope[] = []
+    composite.onReceive(e => received.push(e))
+
+    wifi.deliver(envelope('Wi-Fi 로 왔다'))
+
+    expect(received).toHaveLength(1)
+  })
+
+  it('쓰는 길로 온 봉투를 두 번 올리지 않는다', () => {
+    const received: Envelope[] = []
+    composite.onReceive(e => received.push(e))
+
+    ble.deliver(envelope('블루투스로 왔다'))
+
+    expect(received).toHaveLength(1)
+  })
+
+  it('끊긴 길에서 늦게 온 봉투는 받지 않는다', () => {
+    const received: Envelope[] = []
+    composite.onReceive(e => received.push(e))
+    wifi.loseConnection()
+
+    wifi.deliver(envelope('늦게 왔다'))
+
+    expect(received).toHaveLength(0)
+  })
+
+  it('끌 때는 다른 길로 옮겨 붙지 않는다', async () => {
+    const links: Array<string | null> = []
+    composite.onStateChange(state => links.push(state.link))
+
+    await composite.disconnect()
+
+    expect(links).toEqual([null])
+    expect(composite.currentState().phase).toBe('idle')
+  })
+})
+
 describe('아래쪽 길이 끊겼을 때', () => {
   it('위로 알린다', async () => {
     const wifi = new FakeMessageTransport('wifi')

@@ -47,6 +47,21 @@ export class CompositeTransport implements MessageTransport {
     if (candidates.length === 0) {
       throw new Error('길이 하나도 없이 만들 수 없다')
     }
+
+    /*
+      **봉투는 쓰는 길만이 아니라 이어진 길 전부에서 듣는다.**
+
+      두 길이 거의 같은 때 이어지면 한 폰은 블루투스, 다른 폰은 Wi-Fi 를
+      고를 수 있다. 쓰는 길로만 들으면 서로의 말이 안 들린다. 같은 봉투가
+      두 번 와도 메시지 식별자로 걸러진다. 놓은 길(이어지지 않은 길)에서
+      늦게 오는 것은 듣지 않는다. (docs/04-transport-spec.md 6장)
+    */
+    for (const candidate of candidates) {
+      candidate.onReceive(envelope => {
+        if (candidate !== this.active && !candidate.currentState().isUsable()) return
+        for (const handler of this.receiveHandlers) handler(envelope)
+      })
+    }
   }
 
   /** 지금 쓰는 길. 아직 안 붙었으면 첫 후보의 종류를 말한다 */
@@ -142,12 +157,12 @@ export class CompositeTransport implements MessageTransport {
 
   async disconnect(): Promise<void> {
     await this.queue.run(async () => {
-      for (const candidate of this.candidates) {
-        this.unsubscribe(candidate)
-        await candidate.disconnect()
-      }
-
+      // 귀부터 전부 뗀다. 하나씩 떼며 닫으면 먼저 닫힌 길이 "끊겼다" 고 할 때
+      // 아직 안 닫힌 다른 길로 옮겨 붙는다.
+      for (const candidate of this.candidates) this.unsubscribe(candidate)
       this.active = null
+      for (const candidate of this.candidates) await candidate.disconnect()
+
       const stopped = this.state.stop()
       if (stopped.ok) this.setState(stopped.value)
     })
@@ -250,13 +265,27 @@ export class CompositeTransport implements MessageTransport {
     this.active = next
 
     const unsubscribes: Unsubscribe[] = [
-      next.onReceive(envelope => {
-        for (const handler of this.receiveHandlers) handler(envelope)
-      }),
       next.onStateChange(state => {
         // 갈아타는 중에는 아래쪽 상태를 그대로 따르지 않는다.
         // 옛 길이 끊기는 것은 우리가 일부러 한 일이다.
         if (this.state.phase === 'switching') return
+
+        // 쓰던 길이 끊겼는데 다른 길이 이미 이어져 있으면 곧장 옮긴다.
+        // 그 길은 이미 이어져 있어 상태가 다시 바뀌지 않으므로, 지켜보기만
+        // 해서는 옮길 때를 알 수 없다. 블루투스로 이야기하다 멀어졌는데
+        // 기내 Wi-Fi 는 진작 이어져 있는 경우다.
+        if (!state.isUsable()) {
+          const other = this.candidates.find(
+            one => one !== next && one.currentState().isUsable(),
+          )
+          if (other !== undefined) {
+            this.unsubscribe(next)
+            this.watch(next)
+            this.adopt(other)
+            void this.drainOutbox()
+            return
+          }
+        }
 
         if (!state.isUsable() && this.state.isUsable()) {
           const lost = this.state.lose()
