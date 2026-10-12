@@ -120,12 +120,14 @@ function describe(
 
   switch (state.phase) {
     case 'connected':
-      // 블루투스도 제대로 이어진 것이다. 비행기에서는 이것뿐이라 "글만" 같은
-      // 단서를 달면 늘 반쪽짜리로 보인다.
+      // 블루투스도 제대로 이어진 것이다. "글만" 같은 단서를 달면 늘 반쪽짜리로
+      // 보인다. 어느 길인지만 적는다. 기내 Wi-Fi 로 옮겨 탔을 때 사진이 왜
+      // 빨라졌는지 알 수 있다.
       return {
         color: 'success',
         icon: state.link === 'ble' ? 'bluetooth' : 'wifi',
-        text: '이어져 있어요',
+        text:
+          state.link === 'ble' ? '블루투스로 이어져 있어요' : 'Wi-Fi 로 이어져 있어요',
         showSpinner: false,
       }
 

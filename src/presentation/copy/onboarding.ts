@@ -124,8 +124,9 @@ export const audioModeChoice = {
 
 /** 연결 안내 맨 위에 붙이는 말 */
 export const connectIntro = {
-  host: '자리에 앉으면 둘 다 블루투스만 켜두세요. 나머지는 앱이 알아서 합니다.',
-  guest: '자리에 앉으면 둘 다 블루투스만 켜두세요. 나머지는 앱이 알아서 합니다.',
+  host: '자리에 앉으면 둘 다 블루투스만 켜두세요. 나머지는 앱이 알아서 합니다. 기내 Wi-Fi 가 있으면 둘 다 붙어두면 멀리 앉아도 이어져요.',
+  guest:
+    '자리에 앉으면 둘 다 블루투스만 켜두세요. 나머지는 앱이 알아서 합니다. 기내 Wi-Fi 가 있으면 둘 다 붙어두면 멀리 앉아도 이어져요.',
 } as const
 
 export const welcome = {

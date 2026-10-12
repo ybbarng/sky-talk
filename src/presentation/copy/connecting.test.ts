@@ -53,6 +53,21 @@ describe('오래 걸릴 때 덧붙이는 도움말', () => {
     expect(hint.lines.join('\n')).toContain('블루투스')
   })
 
+  it('블루투스가 안 닿으면 두 쪽 다 같은 기내 Wi-Fi 를 권한다', () => {
+    // 2026-09 비행에서 자리가 멀어 블루투스가 한 번도 제대로 안 이어졌다
+    for (const role of ['host', 'guest'] as const) {
+      expect(longHintFor(role, '지민').lines.join('\n')).toContain('기내 Wi-Fi')
+    }
+  })
+
+  it('아이폰 쪽에는 Wi-Fi 창과 로컬 네트워크 물음에 무엇을 누를지 적는다', () => {
+    // 잘못 누르면 Wi-Fi 로는 영영 안 이어진다
+    const text = longHintFor('guest', '지민').lines.join('\n')
+
+    expect(text).toContain('인터넷 없이 사용')
+    expect(text).toContain('허용')
+  })
+
   it('이름을 몰라도 자리를 비워두지 않는다', () => {
     const hint = longHintFor('guest', '지민')
     const text = hint.lines.join('\n')
