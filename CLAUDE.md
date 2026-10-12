@@ -17,6 +17,7 @@
 | 화면 | [docs/07-design-system.md](./docs/07-design-system.md) |
 | 빌드·배포 | [docs/08-build-release.md](./docs/08-build-release.md) |
 | 테스트 | [docs/09-testing.md](./docs/09-testing.md) |
+| 이 저장소가 어떻게 됐나 | [docs/10-retrospective.md](./docs/10-retrospective.md) |
 
 ## 작업 방식
 

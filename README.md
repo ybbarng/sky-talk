@@ -153,6 +153,7 @@ src/
 | [빌드와 배포](./docs/08-build-release.md) | 두 폰에 올리는 법 |
 | [테스트](./docs/09-testing.md) | 무엇을 어떻게 지키는가 |
 | [작업 카드](./docs/tasks/README.md) | 만드는 순서 |
+| [돌아보기](./docs/10-retrospective.md) | 만들고, 비행기에서 써보고, 그 뒤에 한 일 |
 
 ## 개인정보
 
